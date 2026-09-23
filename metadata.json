@@ -1,0 +1,7 @@
+{
+  "name": "AUDAX",
+  "description": "Sistema SaaS moderno para AUDAX com controle multi-perfil (Dono, Barbeiro/Profissional, Cliente), agendamentos inteligentes e dashboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
