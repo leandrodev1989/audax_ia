@@ -421,7 +421,9 @@ Instruções Estritas:
 }`;
 
     // 1. OPENAI-COMPATIBLE PROVIDERS (Groq & OpenRouter)
-    if ((provider === 'groq' || provider === 'openrouter') && apiKey && apiKey.trim()) {
+    const apiKeyToUse = (apiKey && apiKey.trim()) ? apiKey.trim() : null;
+
+    if ((provider === 'groq' || provider === 'openrouter') && apiKeyToUse) {
       try {
         const endpointUrl = provider === 'groq'
           ? 'https://api.groq.com/openai/v1/chat/completions'
@@ -430,7 +432,7 @@ Instruções Estritas:
         const selectedModel = model || (provider === 'groq' ? 'llama-3.3-70b-versatile' : 'google/gemini-2.0-flash-exp:free');
 
         const headers: Record<string, string> = {
-          'Authorization': `Bearer ${apiKey.trim()}`,
+          'Authorization': `Bearer ${apiKeyToUse}`,
           'Content-Type': 'application/json',
         };
         if (provider === 'openrouter') {
@@ -478,6 +480,7 @@ Instruções Estritas:
         }
       } catch (externalErr: any) {
         console.warn(`Error invoking ${provider}:`, externalErr?.message);
+        throw new Error(`Erro ao conectar com ${provider}: ${externalErr.message}`);
       }
     }
 
