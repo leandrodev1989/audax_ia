@@ -30,38 +30,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useBarberData } from '../../context/BarberDataContext';
-
-interface FreeSlotInfo {
-  barberId: string;
-  barberName: string;
-  freeSlots: string[];
-}
-
-interface ParsedAiResult {
-  clientName: string;
-  clientWhatsapp?: string;
-  barberId: string;
-  barberName: string;
-  serviceId: string;
-  serviceName: string;
-  servicePrice?: number;
-  date: string;
-  time: string;
-  slotStatus?: 'LIVRE' | 'REARRANJADO_HORARIO_OCUPADO';
-  occupiedNotice?: string;
-  freeSlotsSummary?: FreeSlotInfo[];
-  notes?: string;
-  confidenceScore: number;
-  reasoning: string;
-}
-
-interface ProviderModelOption {
-  id: string;
-  name: string;
-  badge?: string;
-}
-
-type ProviderType = 'gemini' | 'groq' | 'openrouter' | 'audax';
+import {
+  testProviderDirect,
+  parseBookingDirect,
+  ProviderType,
+  ProviderModelOption,
+} from '../../services/aiClientService';
+import { ParsedAiResult, FreeSlotInfo } from '../../lib/aiBookingLogic';
 
 export const AiBookingTestView: React.FC = () => {
   const { currentUser, activeRole } = useAuth();
@@ -81,7 +56,7 @@ export const AiBookingTestView: React.FC = () => {
   });
 
   const [selectedModel, setSelectedModel] = useState<string>(() => {
-    return localStorage.getItem('audax_ai_model') || 'gemini-3.8-flash';
+    return localStorage.getItem('audax_ai_model') || 'gemini-2.5-flash';
   });
 
   const [availableModels, setAvailableModels] = useState<ProviderModelOption[]>([]);
@@ -178,20 +153,7 @@ export const AiBookingTestView: React.FC = () => {
     const apiKeyInput = keyToTest !== undefined ? keyToTest : (apiKeys[provider] || '');
 
     try {
-      const response = await fetch('/api/ai/test-provider', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider,
-          apiKey: apiKeyInput,
-        }),
-      });
-
-      const json = await response.json();
-
-      if (!response.ok || !json.success) {
-        throw new Error(json.error || 'Erro ao conectar com o provedor.');
-      }
+      const json = await testProviderDirect(provider, apiKeyInput);
 
       setAvailableModels(json.models || []);
       if (json.models && json.models.length > 0) {
@@ -268,45 +230,33 @@ export const AiBookingTestView: React.FC = () => {
     const activeServices = services.filter((s) => s.isActive !== false);
 
     try {
-      const response = await fetch('/api/ai/parse-booking', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: inputPrompt,
-          provider: selectedProvider,
-          apiKey: apiKeys[selectedProvider] || '',
-          model: selectedModel,
-          availableBarbers: activeBarbers.map((b) => ({
-            id: b.id,
-            name: b.name,
-            specialties: b.specialties,
-          })),
-          availableServices: activeServices.map((s) => ({
-            id: s.id,
-            name: s.name,
-            price: s.price,
-            duration: s.durationMinutes,
-            category: s.category,
-          })),
-          existingAppointments: appointments.map((a) => ({
-            id: a.id,
-            barberId: a.barberId,
-            barberName: a.barberName,
-            serviceName: a.serviceName,
-            date: a.date,
-            time: a.time,
-            status: a.status,
-          })),
-        }),
+      const json = await parseBookingDirect({
+        prompt: inputPrompt,
+        provider: selectedProvider,
+        apiKey: apiKeys[selectedProvider] || '',
+        model: selectedModel,
+        availableBarbers: activeBarbers.map((b) => ({
+          id: b.id,
+          name: b.name,
+          specialties: b.specialties,
+        })),
+        availableServices: activeServices.map((s) => ({
+          id: s.id,
+          name: s.name,
+          price: s.price,
+          duration: s.durationMinutes,
+          category: s.category,
+        })),
+        existingAppointments: appointments.map((a) => ({
+          id: a.id,
+          barberId: a.barberId,
+          barberName: a.barberName,
+          serviceName: a.serviceName,
+          date: a.date,
+          time: a.time,
+          status: a.status,
+        })),
       });
-
-      const json = await response.json();
-
-      if (!response.ok || !json.success) {
-        throw new Error(json.error || json.details || 'Erro ao comunicar com a API de IA.');
-      }
 
       const parsed: ParsedAiResult = json.data;
       setResult(parsed);
@@ -328,7 +278,7 @@ export const AiBookingTestView: React.FC = () => {
       console.error('AI test error:', err);
       setError(
         err?.message ||
-          'Não foi possível interpretar a mensagem com a IA. Verifique se o servidor e a API Key estão corretos.'
+          'Não foi possível interpretar a mensagem com a IA. Verifique se a API Key está correta.'
       );
     } finally {
       setLoading(false);
