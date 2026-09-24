@@ -179,24 +179,6 @@ export const AiBookingTestView: React.FC = () => {
     }
   };
 
-  // Restricted Access Check: ONLY 'dono' profile can use this screen
-  if (activeRole !== 'dono') {
-    return (
-      <div className="p-8 max-w-2xl mx-auto my-12 text-center rounded-2xl border border-amber-300 bg-amber-50/80 shadow-md">
-        <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-amber-100 text-[#a16a1c] border border-amber-300 flex items-center justify-center shadow-2xs">
-          <ShieldCheck className="w-8 h-8" />
-        </div>
-        <h2 className="text-xl font-black text-stone-900">Acesso Restrito ao Barbeiro Dono</h2>
-        <p className="mt-2 text-sm text-stone-700 font-semibold leading-relaxed">
-          A tela de homologação e teste de agendamento por Inteligência Artificial é exclusiva para o perfil do <strong>Barbeiro Dono / Gestor</strong>.
-        </p>
-        <p className="mt-3 text-xs text-stone-600 font-medium">
-          Para acessar, utilize o seletor de perfil na barra superior do sistema e altere sua visualização para <strong>"Dono"</strong>.
-        </p>
-      </div>
-    );
-  }
-
   // Find a sample existing occupied appointment to make testing collisions super easy for the user!
   const occupiedAppt = appointments.find((a) => a.status !== 'cancelado') || appointments[0];
   const activeBarbersList = barbers.filter((b) => b.isActive !== false);
@@ -372,34 +354,30 @@ export const AiBookingTestView: React.FC = () => {
     <div className="space-y-6">
       {/* Top Banner Header */}
       <div className="rounded-2xl border border-[#e2dcce] bg-white p-6 md:p-8 shadow-xs">
-        <div className="inline-flex items-center space-x-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 border border-amber-300 mb-3">
-          <Sparkles className="w-3.5 h-3.5 text-[#a16a1c]" />
-          <span>Painel do Dono • Multi-Provedor IA (Gemini, Groq, OpenRouter)</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="inline-flex items-center space-x-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 border border-amber-300">
+            <Sparkles className="w-3.5 h-3.5 text-[#a16a1c]" />
+            <span>Painel do Dono • Multi-Provedor IA (Gemini, Groq, OpenRouter)</span>
+          </div>
+
+          <button
+            onClick={() => setShowSettingsPanel((prev) => !prev)}
+            className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#a16a1c] hover:bg-[#8c5a15] text-white rounded-full text-xs font-bold transition-all shadow-sm shrink-0 border border-[#a16a1c]/20"
+          >
+            <Settings className="w-3.5 h-3.5 text-white animate-spin-slow" />
+            <span>{showSettingsPanel ? 'Ocultar Configuração de IA' : 'Configurar Provedor & API Key'}</span>
+          </button>
         </div>
+
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-black text-stone-900 tracking-tight flex items-center gap-2.5">
               <span>Agendamento Inteligente com Verificação Real</span>
-              <span className="px-2.5 py-0.5 rounded-lg bg-[#211e19] text-amber-300 text-xs font-mono font-bold border border-stone-800 uppercase flex items-center gap-1.5">
-                <Cpu className="w-3.5 h-3.5 text-amber-400" />
-                {selectedProvider === 'gemini' && 'Google Gemini'}
-                {selectedProvider === 'groq' && '⚡ Groq Cloud'}
-                {selectedProvider === 'openrouter' && '🌐 OpenRouter (Free)'}
-                {selectedProvider === 'audax' && '🛡️ Motor AUDAX'}
-              </span>
             </h1>
             <p className="mt-1.5 text-sm text-stone-600 max-w-3xl leading-relaxed font-medium">
               Configure sua própria API Key para integrar com <strong>Google Gemini</strong>, <strong>Groq</strong>, <strong>OpenRouter</strong> ou utilize o motor nativo para testar modelos gratuitos de altíssimo desempenho.
             </p>
           </div>
-
-          <button
-            onClick={() => setShowSettingsPanel((prev) => !prev)}
-            className="p-3 bg-[#211e19] hover:bg-stone-800 text-amber-300 rounded-xl border border-stone-800 text-xs font-bold shrink-0 flex items-center gap-2 transition-all shadow-md"
-          >
-            <Settings className="w-4 h-4 text-amber-400" />
-            <span>{showSettingsPanel ? 'Ocultar Configuração de IA' : '⚙️ Configurar Provedor & API Key'}</span>
-          </button>
         </div>
       </div>
 

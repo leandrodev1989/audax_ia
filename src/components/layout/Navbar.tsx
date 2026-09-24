@@ -79,9 +79,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   STUDIO <span className="text-[#a16a1c]">AUDAX</span>
                 </span>
               </div>
-              <p className="text-[11px] text-stone-600 font-semibold hidden sm:block">
-                Gestão Inteligente & Studio
-              </p>
             </div>
           </button>
         </div>
@@ -397,6 +394,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               Barbeiros
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('ai-booking');
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-bold ${
+                activeTab === 'ai-booking' ? 'bg-amber-100 text-amber-950 border border-amber-300' : 'text-stone-800 hover:bg-stone-100'
+              }`}
+            >
+              Validação de Agendamento IA
             </button>
             {activeRole === 'dono' && (
               <>

@@ -87,7 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'ai-booking',
       label: 'Validação de Agendamento IA',
       icon: Sparkles,
-      roles: ['dono'],
+      roles: ['dono', 'barbeiro', 'cliente'],
       badge: 'IA Gemini 3.8',
       badgeColor: 'bg-amber-100 text-amber-900 border border-amber-300 font-bold',
     },
