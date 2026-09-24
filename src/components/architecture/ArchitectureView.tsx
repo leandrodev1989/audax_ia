@@ -114,7 +114,7 @@ export const ArchitectureView: React.FC = () => {
       {/* SECTION 1: ARQUITETURA */}
       {activeSection === 'arquitetura' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="p-5 rounded-2xl border border-[#e2dcce] bg-white shadow-xs space-y-3">
               <div className="w-10 h-10 rounded-xl bg-amber-100 text-[#a16a1c] border border-amber-300 flex items-center justify-center">
                 <Smartphone className="w-5 h-5" />
@@ -159,41 +159,76 @@ export const ArchitectureView: React.FC = () => {
                 <li>Snapshots e backups automatizados</li>
               </ul>
             </div>
+
+            <div className="p-5 rounded-2xl border border-amber-300 bg-amber-50/50 shadow-sm space-y-3 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-amber-200/20 rounded-full blur-xl pointer-events-none" />
+              <div className="w-10 h-10 rounded-xl bg-amber-950 text-amber-300 border border-stone-800 flex items-center justify-center">
+                <Cpu className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-base font-extrabold text-stone-950">Motor AUDAX & IA</h3>
+                <span className="px-1.5 py-0.5 text-[8px] font-black uppercase rounded bg-amber-950 text-amber-300 tracking-wider">
+                  Destaque
+                </span>
+              </div>
+              <p className="text-xs text-stone-700 leading-relaxed font-semibold">
+                Mecanismo híbrido inteligente de NLP e agendamento por voz ou texto. Integração fluida com grandes LLMs e fallback de altíssimo desempenho.
+              </p>
+              <ul className="text-xs text-stone-800 space-y-1 list-disc list-inside font-bold">
+                <li className="text-[#a16a1c]"><strong className="text-amber-950">Motor AUDAX Nativo:</strong> Algoritmo de NLP de latência zero rodando 100% offline e gratuito.</li>
+                <li><strong className="text-amber-950">Bypass de CORS Seguro:</strong> Proxy serverless de mesma origem que elimina o erro de rede <i>"Failed to fetch"</i>.</li>
+                <li><strong className="text-amber-950">Multi-Provedor Integrado:</strong> Suporte flexível para chaves do Google Gemini, Groq e OpenRouter.</li>
+              </ul>
+            </div>
           </div>
 
           {/* Diagrama Textual da Arquitetura */}
           <div className="p-6 rounded-2xl border border-[#e2dcce] bg-white shadow-xs space-y-3">
             <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
               <FileCode2 className="w-4 h-4 text-[#a16a1c]" />
-              <span>Diagrama Estrutural da Solução SaaS</span>
+              <span>Diagrama Estrutural da Solução SaaS (Com Integração IA & Motor AUDAX)</span>
             </h3>
             <pre className="p-4 rounded-xl bg-[#211e19] border border-stone-800 text-[11px] text-amber-100 font-mono overflow-x-auto leading-relaxed shadow-inner">
-{`+-----------------------------------------------------------------------------------+
-|                           CLIENT APPLICATION LAYER                                |
-|  [Cliente Mobile/Web]      [Barbeiro Bancada]      [Barbeiro Dono / Gestor]       |
-+-----------------------------------------------------------------------------------+
-                                         │
-                                         ▼ HTTPS / WSS
-+-----------------------------------------------------------------------------------+
-|                        API GATEWAY / MIDDLEWARE LAYER                             |
-|  - Rate Limiter & Helmet      - JWT & RBAC Evaluator      - Tenant Resolver       |
-+-----------------------------------------------------------------------------------+
-                                         │
-                                         ▼
-+-----------------------------------------------------------------------------------+
-|                          CORE DOMAIN USE CASES                                    |
-|  [AppointmentsService]  [ServicesCatalogService]  [BarbersService]  [ReportsService] |
-|  - Concurrency Lock     - Dynamic Pricing & Slots - Commission Calc - Cashflow Proj  |
-+-----------------------------------------------------------------------------------+
-                                         │
-                 ┌───────────────────────┴───────────────────────┐
-                 ▼                                               ▼
-+------------------------------------+        +-------------------------------------+
-|        PRIMARY DATABASE            |        |          EXTERNAL INTEGRATIONS      |
-|  PostgreSQL 16 Relational Engine   |        |  - WhatsApp Business API (Z-API)    |
-|  - Multi-profile RBAC Tables       |        |  - Gateway PIX / Cartão (MercadoPago)|
-|  - Double-booking Prevention Index |        |  - Gemini AI Demand Forecaster       |
-+------------------------------------+        +-------------------------------------+`}
+{`+---------------------------------------------------------------------------------------------------------+
+|                                        CLIENT APPLICATION LAYER                                         |
+|  [Cliente Mobile/Web]                 [Barbeiro Bancada]                 [Barbeiro Dono / Gestor]       |
++---------------------------------------------------------------------------------------------------------+
+                                                     │
+                                                     ▼ HTTPS / WSS / API Relativa (Bypass CORS)
++---------------------------------------------------------------------------------------------------------+
+|                                     API GATEWAY / MIDDLEWARE LAYER                                      |
+|  - Rate Limiter & Helmet                 - JWT & RBAC Evaluator                 - Tenant Resolver       |
++---------------------------------------------------------------------------------------------------------+
+                                                     │
+                                                     ▼
++---------------------------------------------------------------------------------------------------------+
+|                                           HYBRID INTELLIGENCE LAYER                                     |
+|                                                                                                         |
+|       ┌────────────────────────────────────────────┴────────────────────────────────────────────┐       |
+|       ▼ (Se houver API Key & Rede)                                                              ▼ (Offline/Grátis)|
+|  +---------------------------------------+                                             +-----------------------+ |
+|  |  CLOUDFLARE/VERCEL PROXY BYPASS       |                                             |  MOTOR AUDAX NATIVO   | |
+|  |  - Zero CORS "Failed to Fetch" Router |                                             |  - Local NLP Engine   | |
+|  |  - Secure Key Encapsulation           |                                             |  - Regex & Fuzzy Match| |
+|  |  - Gemini, Groq, OpenRouter Support   |                                             |  - Zero-Latency Fallbk| |
+|  +---------------------------------------+                                             +-----------------------+ |
+|       │                                                                                             │            |
+|       └────────────────────────────────────────────┬────────────────────────────────────────────────┘            |
+|                                                    ▼                                                             |
++---------------------------------------------------------------------------------------------------------+
+|                                           CORE DOMAIN USE CASES                                         |
+|  [AppointmentsService]      [ServicesCatalogService]      [BarbersService]      [ReportsService]        |
+|  - Concurrency Lock         - Dynamic Pricing & Slots     - Commission Calc     - Cashflow Proj         |
++---------------------------------------------------------------------------------------------------------+
+                                                     │
+                             ┌───────────────────────┴───────────────────────┐
+                             ▼                                               ▼
++------------------------------------------------+       +------------------------------------------------+
+|               PRIMARY DATABASE                 |       |              EXTERNAL INTEGRATIONS             |
+|  PostgreSQL 16 Relational Engine (Supabase)    |       |  - WhatsApp Business API (Z-API)               |
+|  - Multi-profile RBAC Tables                   |       |  - Gateway PIX / Cartão (MercadoPago)          |
+|  - Double-booking Prevention & Concurrency Lock|       |  - Gemini AI Demand Forecaster                 |
++------------------------------------------------+       +------------------------------------------------+`}
             </pre>
           </div>
         </div>
@@ -689,14 +724,30 @@ ALTER TABLE barber_services DISABLE ROW LEVEL SECURITY;`}
             </div>
 
             {/* Evolução 3: Inteligência Artificial */}
-            <div className="p-6 rounded-2xl border border-[#e2dcce] bg-white shadow-xs space-y-3 lg:col-span-2">
-              <div className="flex items-center space-x-2 text-purple-900">
-                <Cpu className="w-5 h-5 text-purple-700" />
-                <h3 className="text-base font-bold text-stone-900">Evolução 3: Assistente de Inteligência Artificial para Gestão</h3>
+            <div className="p-6 rounded-2xl border border-amber-300 bg-amber-50/50 shadow-xs space-y-3 lg:col-span-2 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-amber-200/20 rounded-full blur-xl pointer-events-none" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-amber-950">
+                  <Cpu className="w-5 h-5 text-[#a16a1c] animate-pulse" />
+                  <h3 className="text-base font-extrabold text-stone-900">Evolução 3: Agendamento e Validação por Inteligência Artificial</h3>
+                </div>
+                <span className="px-2 py-0.5 text-[10px] font-black uppercase rounded-full bg-[#211e19] text-amber-300 border border-stone-800">
+                  🚀 Ativo & Homologado
+                </span>
               </div>
-              <p className="text-xs text-stone-600 leading-relaxed font-medium">
-                Utilização de modelos Gemini integrados server-side para predição de demanda (ex: antecipar picos de sábado, sugerir horários promocionais em terças-feiras de baixa ocupação) e assistente virtual de atendimento no WhatsApp 24h.
+              <p className="text-xs text-stone-700 leading-relaxed font-semibold">
+                O Studio AUDAX já conta com a tecnologia de <strong>Agendamento Inteligente com Verificação Real</strong> e o revolucionário <strong>Motor AUDAX Nativo</strong> integrado.
               </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div className="p-3 bg-white rounded-xl border border-amber-200 text-xs space-y-1">
+                  <span className="font-extrabold text-stone-900 block">🤖 Motor AUDAX Nativo</span>
+                  <p className="text-[11px] text-stone-600 font-medium">Algoritmo heurístico local rodando de forma 100% gratuita, sem necessidade de chaves de API, com latência zero e suporte offline.</p>
+                </div>
+                <div className="p-3 bg-white rounded-xl border border-amber-200 text-xs space-y-1">
+                  <span className="font-extrabold text-stone-900 block">🛡️ Bypass CORS Serverless</span>
+                  <p className="text-[11px] text-stone-600 font-medium">Roteamento inteligente que elimina o erro "Failed to Fetch", permitindo conexões diretas e seguras com Google Gemini, Groq e OpenRouter.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
