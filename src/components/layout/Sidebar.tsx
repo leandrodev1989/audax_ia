@@ -16,6 +16,7 @@ import {
   Tag,
   UserCheck,
   Edit,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -32,9 +33,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenProfileModal,
 }) => {
   const { activeRole, currentUser } = useAuth();
-  const { stats, appointments, services } = useBarberData();
+  const { stats, appointments, services, isFeatureVisibleForRole } = useBarberData();
 
-  // Navigation items based on RBAC
+  // Navigation items based on RBAC and Owner visibility settings
   const navItems = [
     {
       id: 'dashboard',
@@ -42,6 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: LayoutDashboard,
       roles: ['dono', 'barbeiro', 'cliente'],
       badge: null,
+      isVisible: true,
     },
     {
       id: 'agendamentos',
@@ -50,22 +52,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
       roles: ['dono', 'barbeiro', 'cliente'],
       badge: stats.todayAppointments > 0 ? `${stats.todayAppointments} hoje` : null,
       badgeColor: 'bg-amber-100 text-amber-900 border border-amber-300 font-bold',
+      isVisible: true,
     },
     {
       id: 'servicos',
       label: 'Serviços & Catálogo',
       icon: Tag,
-      roles: ['dono', 'cliente'],
+      roles: ['dono', 'barbeiro', 'cliente'],
       badge: `${services.filter((s) => s.isActive !== false).length} ativos`,
       badgeColor: 'bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold',
+      isVisible: isFeatureVisibleForRole('servicesCatalog', activeRole),
     },
     {
       id: 'clientes',
       label: 'Clientes',
       icon: Users,
-      roles: ['dono'],
+      roles: ['dono', 'barbeiro', 'cliente'],
       badge: stats.totalClients > 0 ? stats.totalClients : null,
       badgeColor: 'bg-stone-200/80 text-stone-800 font-bold',
+      isVisible: isFeatureVisibleForRole('clientList', activeRole),
     },
     {
       id: 'barbeiros',
@@ -74,27 +79,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
       roles: ['dono', 'cliente'],
       badge: stats.activeBarbers > 0 ? `${stats.activeBarbers} ativos` : null,
       badgeColor: 'bg-blue-100 text-blue-900 border border-blue-300 font-bold',
-    },
-    {
-      id: 'arquitetura',
-      label: 'Arquitetura & SaaS Docs',
-      icon: Layers,
-      roles: ['dono'],
-      badge: 'BFF & ERD',
-      badgeColor: 'bg-purple-100 text-purple-900 border border-purple-300 font-bold',
+      isVisible: activeRole === 'dono' || activeRole === 'cliente',
     },
     {
       id: 'ai-booking',
       label: 'Validação de Agendamento IA',
       icon: Sparkles,
       roles: ['dono', 'barbeiro', 'cliente'],
-      badge: 'IA Gemini 3.8',
+      badge: 'IA & Motor AUDAX',
       badgeColor: 'bg-amber-100 text-amber-900 border border-amber-300 font-bold',
+      isVisible: isFeatureVisibleForRole('aiBooking', activeRole),
+    },
+    {
+      id: 'arquitetura',
+      label: 'Arquitetura & SaaS Docs',
+      icon: Layers,
+      roles: ['dono', 'barbeiro', 'cliente'],
+      badge: 'BFF & ERD',
+      badgeColor: 'bg-purple-100 text-purple-900 border border-purple-300 font-bold',
+      isVisible: isFeatureVisibleForRole('architectureDocs', activeRole),
+    },
+    {
+      id: 'gerenciar-visibilidade',
+      label: 'Governança',
+      icon: SlidersHorizontal,
+      roles: ['dono'],
+      badge: null,
+      badgeColor: 'bg-amber-100 text-amber-900 border border-amber-300 font-bold',
+      isVisible: activeRole === 'dono',
     },
   ];
 
-  // Filter items by current active role
-  const visibleNav = navItems.filter((item) => item.roles.includes(activeRole));
+  // Filter items by current active role and visibility setting
+  const visibleNav = navItems.filter(
+    (item) => item.roles.includes(activeRole) && item.isVisible
+  );
 
   return (
     <aside className="hidden lg:flex w-64 flex-col justify-between border-r border-[#e2dcce] bg-white p-4 transition-colors shadow-xs">
@@ -138,6 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
                   id={`sidebar-link-${item.id}`}
+                  title={item.id === 'gerenciar-visibilidade' ? 'Governança: Gerenciar visibilidade de botões e acessos' : undefined}
                   className={`group flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold transition-all ${
                     isActive
                       ? 'bg-[#eee6d8] text-stone-950 font-bold border-l-4 border-[#a16a1c] shadow-2xs'
@@ -146,13 +166,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 >
                   <div className="flex items-center space-x-3">
                     <Icon
-                      className={`h-4 w-4 transition-colors ${
+                      className={`h-4 w-4 shrink-0 transition-colors ${
                         isActive ? 'text-[#a16a1c]' : 'text-stone-600 group-hover:text-stone-900'
                       }`}
                     />
-                    <span>{item.label}</span>
+                    {item.id === 'gerenciar-visibilidade' ? (
+                      <span className="inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                        Governança
+                      </span>
+                    ) : (
+                      <span>{item.label}</span>
+                    )}
                   </div>
-                  {item.badge && (
+                  {item.badge && item.id !== 'gerenciar-visibilidade' && (
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${item.badgeColor}`}>
                       {item.badge}
                     </span>

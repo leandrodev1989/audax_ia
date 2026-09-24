@@ -45,6 +45,7 @@ interface AuthContextType {
   isOwner: () => boolean;
   isBarber: () => boolean;
   isClient: () => boolean;
+  isSimulatingRole: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -124,9 +125,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (currentUser) {
-      // Ensure activeRole is one of user's roles
-      if (!currentUser.roles.includes(activeRole)) {
-        const nextRole = currentUser.roles.includes('dono') ? 'dono' : currentUser.roles[0] || 'cliente';
+      // Se o usuário tem papel 'dono', ele tem privilégio de simulação para testar qualquer visão ('dono', 'barbeiro', 'cliente')
+      if (!currentUser.roles.includes('dono') && !currentUser.roles.includes(activeRole)) {
+        const nextRole = currentUser.roles[0] || 'cliente';
         setActiveRoleState(nextRole);
         localStorage.setItem(ACTIVE_ROLE_KEY, nextRole);
       }
@@ -134,7 +135,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [currentUser, activeRole]);
 
   const setActiveRole = (role: UserRole) => {
-    if (currentUser?.roles.includes(role)) {
+    // Se o usuário é Dono, permite simular qualquer perfil para testar botões e permissões
+    if (currentUser?.roles.includes('dono') || currentUser?.roles.includes(role)) {
       setActiveRoleState(role);
       localStorage.setItem(ACTIVE_ROLE_KEY, role);
     }
@@ -566,6 +568,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isOwner = (): boolean => hasRole('dono') && activeRole === 'dono';
   const isBarber = (): boolean => hasRole('barbeiro') && activeRole === 'barbeiro';
   const isClient = (): boolean => activeRole === 'cliente';
+  const isSimulatingRole = hasRole('dono') && activeRole !== 'dono';
 
   return (
     <AuthContext.Provider
@@ -589,6 +592,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isOwner,
         isBarber,
         isClient,
+        isSimulatingRole,
       }}
     >
       {children}

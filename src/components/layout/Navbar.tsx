@@ -16,6 +16,8 @@ import {
   Phone,
   CheckCircle2,
   Database,
+  SlidersHorizontal,
+  RefreshCw,
 } from 'lucide-react';
 import { useBarberData } from '../../context/BarberDataContext';
 import { SupabaseStatusModal } from '../common/SupabaseStatusModal';
@@ -40,11 +42,41 @@ export const Navbar: React.FC<NavbarProps> = ({
   setIsDarkMode,
 }) => {
   const { currentUser, activeRole, setActiveRole, logout, loginAsDemoUser, users } = useAuth();
-  const { supabaseStatus } = useBarberData();
+  const { supabaseStatus, syncWithSupabase, isFeatureVisibleForRole } = useBarberData();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showDemoUserMenu, setShowDemoUserMenu] = useState(false);
   const [showSupabaseModal, setShowSupabaseModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSyncingDirectly, setIsSyncingDirectly] = useState(false);
+  const [syncToastMessage, setSyncToastMessage] = useState<string | null>(null);
+
+  // Manipulador do botão Supabase: Dono abre a modal detalhada; Cliente e Barbeiro chamam diretamente a lógica de Sincronizar Agora
+  const handleSupabaseClick = async () => {
+    if (activeRole === 'dono') {
+      setShowSupabaseModal(true);
+      return;
+    }
+
+    // Cliente e Barbeiro: NÃO abre a popup; aciona a lógica de sincronização diretamente
+    if (isSyncingDirectly || supabaseStatus.isSyncing) return;
+    setIsSyncingDirectly(true);
+    setSyncToastMessage('Sincronizando dados com o Supabase...');
+
+    try {
+      await syncWithSupabase();
+      setSyncToastMessage('Sincronizado com sucesso com o Supabase!');
+      setTimeout(() => {
+        setSyncToastMessage(null);
+      }, 3500);
+    } catch (err: any) {
+      setSyncToastMessage('Erro ao sincronizar com o Supabase. Tente novamente.');
+      setTimeout(() => {
+        setSyncToastMessage(null);
+      }, 3500);
+    } finally {
+      setIsSyncingDirectly(false);
+    }
+  };
 
   const getRoleLabel = (role: UserRole) => {
     switch (role) {
@@ -59,6 +91,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const currentRoleInfo = getRoleLabel(activeRole);
   const RoleIcon = currentRoleInfo.icon;
+
+  // Se o usuário logado for Dono, permite alternar livremente entre Dono, Barbeiro e Cliente para testes
+  const switchableRoles: UserRole[] = currentUser?.roles.includes('dono')
+    ? ['dono', 'barbeiro', 'cliente']
+    : currentUser?.roles || [];
 
   return (
     <header className="sticky top-0 z-40 border-b border-[#e2dcce] bg-white/95 backdrop-blur-md transition-colors shadow-xs">
@@ -86,14 +123,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Center: Multi-Role Switcher */}
         {currentUser && (
           <div className="hidden md:flex items-center space-x-2">
-            {currentUser.roles.length > 1 ? (
+            {switchableRoles.length > 1 ? (
               <div className="flex items-center bg-[#f4efe4] border border-[#e2dcce] rounded-xl p-1 shadow-xs">
                 <span className="text-[11px] text-stone-700 font-bold px-2 flex items-center gap-1">
                   <Repeat className="w-3 h-3 text-[#a16a1c]" />
                   Alternar Visão:
                 </span>
                 <div className="flex items-center space-x-1">
-                  {currentUser.roles.map((role) => {
+                  {switchableRoles.map((role) => {
                     const info = getRoleLabel(role);
                     const Icon = info.icon;
                     const isActive = activeRole === role;
@@ -126,22 +163,70 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Actions */}
         <div className="flex items-center space-x-2.5">
-          {/* Supabase Status Button */}
-          {activeRole === 'dono' && (
-            <button
-              onClick={() => setShowSupabaseModal(true)}
-              id="supabase-status-btn"
-              className="flex items-center space-x-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition-colors"
-              title="Status da persistência em nuvem com Supabase PostgreSQL"
-            >
-              <Database className="w-3.5 h-3.5 text-emerald-700" />
-              <span className="hidden lg:inline">Supabase</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-            </button>
+          {/* Supabase Status & Sync Button (Controlado pelo Dono via Visibilidade) */}
+          {isFeatureVisibleForRole('supabaseStatus', activeRole) && (
+            <div className="relative">
+              <button
+                onClick={handleSupabaseClick}
+                disabled={isSyncingDirectly || supabaseStatus.isSyncing}
+                id="supabase-status-btn"
+                className={`flex items-center space-x-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all ${
+                  isSyncingDirectly || supabaseStatus.isSyncing
+                    ? 'bg-emerald-100 border-emerald-400 text-emerald-950 opacity-90 cursor-wait'
+                    : syncToastMessage?.includes('sucesso')
+                    ? 'bg-emerald-200 border-emerald-500 text-emerald-950 font-black'
+                    : 'border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 hover:border-emerald-400 shadow-2xs'
+                }`}
+                title={
+                  activeRole === 'dono'
+                    ? 'Status da conexão Supabase (Abrir Painel Completo)'
+                    : 'Sincronizar agora seus dados com o Supabase'
+                }
+              >
+                {isSyncingDirectly || supabaseStatus.isSyncing ? (
+                  <RefreshCw className="w-3.5 h-3.5 text-emerald-700 animate-spin" />
+                ) : syncToastMessage?.includes('sucesso') ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                ) : (
+                  <Database className="w-3.5 h-3.5 text-emerald-700" />
+                )}
+                <span className="hidden sm:inline">
+                  {activeRole === 'dono'
+                    ? 'Supabase'
+                    : isSyncingDirectly || supabaseStatus.isSyncing
+                    ? 'Sincronizando...'
+                    : syncToastMessage?.includes('sucesso')
+                    ? 'Sincronizado!'
+                    : 'Sincronizar Agora'}
+                </span>
+                <span className="sm:hidden">
+                  {isSyncingDirectly || supabaseStatus.isSyncing
+                    ? 'Sync...'
+                    : activeRole === 'dono'
+                    ? 'Supabase'
+                    : 'Sincronizar'}
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+              </button>
+
+              {/* Toast flutuante de feedback para Cliente e Barbeiro */}
+              {activeRole !== 'dono' && syncToastMessage && (
+                <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-emerald-300 bg-white p-2.5 shadow-xl z-50 text-xs font-bold text-emerald-950 flex items-center gap-2 animate-in fade-in">
+                  {isSyncingDirectly ? (
+                    <RefreshCw className="w-4 h-4 text-emerald-600 animate-spin shrink-0" />
+                  ) : syncToastMessage.includes('sucesso') ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <Database className="w-4 h-4 text-amber-600 shrink-0" />
+                  )}
+                  <span className="leading-tight">{syncToastMessage}</span>
+                </div>
+              )}
+            </div>
           )}
 
-          {/* Fast Switch User / Demo Personas Button */}
-          {activeRole === 'dono' && (
+          {/* Fast Switch User / Demo Personas Button (Controlado pelo Dono via Visibilidade) */}
+          {isFeatureVisibleForRole('testProfiles', activeRole) && (
             <div className="relative">
               <button
                 onClick={() => setShowDemoUserMenu(!showDemoUserMenu)}
@@ -206,6 +291,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                       );
                     })}
                   </div>
+
+                  {/* Direct link to Visibility Management - EXCLUSIVO DO DONO */}
+                  {activeRole === 'dono' && (
+                    <div className="pt-2 mt-1 border-t border-[#e2dcce]">
+                      <button
+                        onClick={() => {
+                          setActiveTab('gerenciar-visibilidade');
+                          setShowDemoUserMenu(false);
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-xs transition-colors border border-amber-300"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <SlidersHorizontal className="w-3.5 h-3.5 text-[#a16a1c]" />
+                          Governança
+                        </span>
+                        <span className="text-[10px] bg-amber-200 px-1.5 py-0.5 rounded font-black">
+                          Dono
+                        </span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -360,18 +466,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               Agendamentos
             </button>
-            <button
-              onClick={() => {
-                setActiveTab('servicos');
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-bold ${
-                activeTab === 'servicos' ? 'bg-amber-100 text-amber-950 border border-amber-300' : 'text-stone-800 hover:bg-stone-100'
-              }`}
-            >
-              Serviços & Catálogo
-            </button>
-            {(activeRole === 'dono' || activeRole === 'barbeiro') && (
+            {isFeatureVisibleForRole('servicesCatalog', activeRole) && (
+              <button
+                onClick={() => {
+                  setActiveTab('servicos');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-bold ${
+                  activeTab === 'servicos' ? 'bg-amber-100 text-amber-950 border border-amber-300' : 'text-stone-800 hover:bg-stone-100'
+                }`}
+              >
+                Serviços & Catálogo
+              </button>
+            )}
+            {isFeatureVisibleForRole('clientList', activeRole) && (
               <button
                 onClick={() => {
                   setActiveTab('clientes');
@@ -395,41 +503,86 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               Barbeiros
             </button>
-            <button
-              onClick={() => {
-                setActiveTab('ai-booking');
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-bold ${
-                activeTab === 'ai-booking' ? 'bg-amber-100 text-amber-950 border border-amber-300' : 'text-stone-800 hover:bg-stone-100'
-              }`}
-            >
-              Validação de Agendamento IA
-            </button>
+            {isFeatureVisibleForRole('aiBooking', activeRole) && (
+              <button
+                onClick={() => {
+                  setActiveTab('ai-booking');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-bold ${
+                  activeTab === 'ai-booking' ? 'bg-amber-100 text-amber-950 border border-amber-300' : 'text-stone-800 hover:bg-stone-100'
+                }`}
+              >
+                Validação de Agendamento IA
+              </button>
+            )}
+            {isFeatureVisibleForRole('architectureDocs', activeRole) && (
+              <button
+                onClick={() => {
+                  setActiveTab('arquitetura');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-bold ${
+                  activeTab === 'arquitetura' ? 'bg-amber-100 text-amber-950 border border-amber-300' : 'text-stone-800 hover:bg-stone-100'
+                }`}
+              >
+                Arquitetura & Especificação Técnica
+              </button>
+            )}
+            {isFeatureVisibleForRole('supabaseStatus', activeRole) && (
+              <button
+                onClick={() => {
+                  handleSupabaseClick();
+                  if (activeRole === 'dono') {
+                    setMobileMenuOpen(false);
+                  }
+                }}
+                disabled={isSyncingDirectly}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-bold text-emerald-900 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  {isSyncingDirectly ? (
+                    <RefreshCw className="w-4 h-4 text-emerald-700 animate-spin" />
+                  ) : syncToastMessage?.includes('sucesso') ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  ) : (
+                    <Database className="w-4 h-4 text-emerald-700" />
+                  )}
+                  <span>
+                    {activeRole === 'dono'
+                      ? 'Status do Banco Supabase'
+                      : isSyncingDirectly
+                      ? 'Sincronizando com Supabase...'
+                      : syncToastMessage || 'Sincronizar com Supabase'}
+                  </span>
+                </div>
+                {activeRole !== 'dono' && (
+                  <span className="text-[10px] bg-emerald-200 text-emerald-950 px-2 py-0.5 rounded font-black">
+                    Sincronizar
+                  </span>
+                )}
+              </button>
+            )}
             {activeRole === 'dono' && (
-              <>
-                <button
-                  onClick={() => {
-                    setActiveTab('arquitetura');
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-bold ${
-                    activeTab === 'arquitetura' ? 'bg-amber-100 text-amber-950 border border-amber-300' : 'text-stone-800 hover:bg-stone-100'
-                  }`}
-                >
-                  Arquitetura & Especificação Técnica
-                </button>
-                <button
-                  onClick={() => {
-                    setShowSupabaseModal(true);
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-bold text-emerald-900 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100"
-                >
-                  <Database className="w-4 h-4 mr-2" />
-                  Status do Banco Supabase
-                </button>
-              </>
+              <button
+                onClick={() => {
+                  setActiveTab('gerenciar-visibilidade');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold ${
+                  activeTab === 'gerenciar-visibilidade'
+                    ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                    : 'bg-[#f4efe4] text-stone-900 hover:bg-[#ede5d6] border border-[#e2dcce]'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-[#a16a1c]" />
+                  Governança
+                </span>
+                <span className="text-[10px] bg-amber-200 text-amber-950 px-2 py-0.5 rounded font-black">
+                  Dono
+                </span>
+              </button>
             )}
           </div>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useBarberData } from '../../context/BarberDataContext';
 import {
@@ -32,6 +32,14 @@ export const ClientList: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
+  // Fecha o modal de edição se o usuário não for Dono (ex: ao alternar perfil para Barbeiro)
+  useEffect(() => {
+    if (!isOwner() && editingClient) {
+      setIsModalOpen(false);
+      setEditingClient(null);
+    }
+  }, [isOwner, editingClient]);
+
   // Form fields
   const [formName, setFormName] = useState('');
   const [formPhone, setFormPhone] = useState('');
@@ -60,6 +68,11 @@ export const ClientList: React.FC = () => {
   };
 
   const handleOpenEdit = (client: Client) => {
+    if (!isOwner()) {
+      setToastMessage('Apenas o Dono tem permissão para editar dados de clientes.');
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
     setEditingClient(client);
     setFormName(client.name || '');
     setFormPhone(client.phone || '');
@@ -79,6 +92,13 @@ export const ClientList: React.FC = () => {
       : formPhone.replace(/\D/g, '');
 
     if (editingClient) {
+      if (!isOwner()) {
+        setToastMessage('Permissão negada: apenas o Dono pode editar dados de clientes.');
+        setTimeout(() => setToastMessage(null), 3000);
+        setIsModalOpen(false);
+        return;
+      }
+
       updateClient(editingClient.id, {
         name: formName,
         phone: formPhone,
@@ -214,16 +234,16 @@ export const ClientList: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Actions Drop */}
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => handleOpenEdit(client)}
-                      className="p-1.5 rounded-lg text-stone-600 hover:text-[#a16a1c] hover:bg-stone-100 transition-colors"
-                      title="Editar Cliente"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    {isOwner() && (
+                  {/* Actions Drop (Apenas para o Dono) */}
+                  {isOwner() && (
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => handleOpenEdit(client)}
+                        className="p-1.5 rounded-lg text-stone-600 hover:text-[#a16a1c] hover:bg-stone-100 transition-colors"
+                        title="Editar Cliente"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => deleteClient(client.id)}
                         className="p-1.5 rounded-lg text-stone-500 hover:text-rose-700 hover:bg-stone-100 transition-colors"
@@ -231,8 +251,8 @@ export const ClientList: React.FC = () => {
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Contact details */}

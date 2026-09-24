@@ -100,3 +100,18 @@ export interface BarbershopSettings {
   appointmentIntervalMinutes: number;
   allowClientCancelHoursLimit: number;
 }
+
+export interface FeatureRoleVisibility {
+  dono: boolean;
+  barbeiro: boolean;
+  cliente: boolean;
+}
+
+export interface RoleVisibilitySettings {
+  aiBooking: FeatureRoleVisibility;
+  supabaseStatus: FeatureRoleVisibility;
+  testProfiles: FeatureRoleVisibility;
+  architectureDocs: FeatureRoleVisibility;
+  clientList: FeatureRoleVisibility;
+  servicesCatalog: FeatureRoleVisibility;
+}

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BarberDataProvider, useBarberData } from './context/BarberDataContext';
 import { Navbar } from './components/layout/Navbar';
@@ -21,9 +21,13 @@ import { AiBookingTestView } from './components/ai/AiBookingTestView';
 import { AuthModal } from './components/auth/AuthModal';
 import { UserProfileModal } from './components/profile/UserProfileModal';
 import { LoginPage } from './components/auth/LoginPage';
+import { FloatingSimulationBanner } from './components/visibility/FloatingSimulationBanner';
+import { VisibilityControlCard } from './components/visibility/VisibilityControlCard';
+import { ShieldAlert } from 'lucide-react';
 
 function MainApp() {
   const { activeRole, currentUser } = useAuth();
+  const { isFeatureVisibleForRole } = useBarberData();
 
   // Navigation tab: 'dashboard' | 'agendamentos' | 'servicos' | 'clientes' | 'barbeiros' | 'arquitetura'
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -39,6 +43,13 @@ function MainApp() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+
+  // Proteção de rota da Governança: Se a aba for 'gerenciar-visibilidade' e o perfil não for 'dono', redireciona para 'dashboard'
+  useEffect(() => {
+    if (activeTab === 'gerenciar-visibilidade' && activeRole !== 'dono') {
+      setActiveTab('dashboard');
+    }
+  }, [activeRole, activeTab]);
 
   // O fluxo SEMPRE abre a tela de login se não houver usuário autenticado
   if (!currentUser) {
@@ -96,6 +107,11 @@ function MainApp() {
         setIsDarkMode={setIsDarkMode}
       />
 
+      {/* Floating Simulation Bar when Owner is testing Barber or Client views */}
+      <FloatingSimulationBanner
+        onOpenVisibilityManager={() => setActiveTab('gerenciar-visibilidade')}
+      />
+
       <div className="flex-1 flex w-full max-w-7xl mx-auto">
         {/* Left Sidebar */}
         <Sidebar
@@ -115,17 +131,76 @@ function MainApp() {
               }
             />
           )}
-          {activeTab === 'servicos' && (
+          {activeTab === 'servicos' && isFeatureVisibleForRole('servicesCatalog', activeRole) && (
             <ServiceList onScheduleService={(srvId) => handleOpenBooking(srvId)} />
           )}
-          {activeTab === 'clientes' && (activeRole === 'dono' || activeRole === 'barbeiro') && <ClientList />}
+          {activeTab === 'clientes' && isFeatureVisibleForRole('clientList', activeRole) && <ClientList />}
           {activeTab === 'barbeiros' && <BarberList />}
-          {activeTab === 'arquitetura' && activeRole === 'dono' && <ArchitectureView />}
-          {activeTab === 'ai-booking' && <AiBookingTestView />}
-          {/* Fallback para abas não autorizadas */}
-          {((activeTab === 'arquitetura' && activeRole !== 'dono') ||
-            (activeTab === 'clientes' && activeRole === 'cliente')) &&
-            renderDashboard()}
+          {activeTab === 'arquitetura' && isFeatureVisibleForRole('architectureDocs', activeRole) && <ArchitectureView />}
+          {activeTab === 'ai-booking' && isFeatureVisibleForRole('aiBooking', activeRole) && <AiBookingTestView />}
+          {activeTab === 'gerenciar-visibilidade' && activeRole === 'dono' && (
+            <VisibilityControlCard
+              onNavigateTab={(tab) => setActiveTab(tab)}
+              isStandalone={true}
+            />
+          )}
+
+          {activeTab === 'gerenciar-visibilidade' && activeRole !== 'dono' && (
+            <div className="rounded-2xl border border-red-200 bg-white p-8 text-center max-w-xl mx-auto my-12 shadow-xs space-y-4">
+              <div className="mx-auto w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center text-red-600">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-black text-stone-900">
+                Painel de Governança Restrito ao Dono
+              </h3>
+              <p className="text-xs text-stone-600 leading-relaxed">
+                A tela de governança e controle de visibilidade de botões é de acesso exclusivo do <strong>Barbeiro Dono</strong>.
+              </p>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className="px-4 py-2 rounded-xl bg-[#a16a1c] hover:bg-[#8c5a15] text-white text-xs font-bold transition-all shadow-xs"
+                >
+                  Voltar ao Dashboard
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Fallback para abas desativadas na visibilidade configurada pelo Dono */}
+          {((activeTab === 'ai-booking' && !isFeatureVisibleForRole('aiBooking', activeRole)) ||
+            (activeTab === 'arquitetura' && !isFeatureVisibleForRole('architectureDocs', activeRole)) ||
+            (activeTab === 'clientes' && !isFeatureVisibleForRole('clientList', activeRole)) ||
+            (activeTab === 'servicos' && !isFeatureVisibleForRole('servicesCatalog', activeRole))) && (
+            <div className="rounded-2xl border border-[#e2dcce] bg-white p-8 text-center max-w-xl mx-auto my-12 shadow-xs space-y-4">
+              <div className="mx-auto w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-[#a16a1c]">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-black text-stone-900">
+                Recurso Não Disponível Para Este Perfil
+              </h3>
+              <p className="text-xs text-stone-600 leading-relaxed">
+                A visibilidade desta funcionalidade foi configurada como oculta para a visão de{' '}
+                <strong className="uppercase">"{activeRole}"</strong> pelo Barbeiro Dono.
+              </p>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className="px-4 py-2 rounded-xl bg-[#a16a1c] hover:bg-[#8c5a15] text-white text-xs font-bold transition-all shadow-xs"
+                >
+                  Voltar ao Dashboard
+                </button>
+                {activeRole === 'dono' && (
+                  <button
+                    onClick={() => setActiveTab('gerenciar-visibilidade')}
+                    className="px-4 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 text-xs font-bold transition-all border border-amber-300"
+                  >
+                    Liberar no Painel de Governança
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </main>
       </div>
 

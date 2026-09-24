@@ -17,8 +17,10 @@ import {
   Phone,
   BarChart3,
   Percent,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Appointment } from '../../types';
+import { VisibilityControlCard } from '../visibility/VisibilityControlCard';
 
 interface OwnerDashboardProps {
   onOpenNewAppointment: () => void;
@@ -80,8 +82,17 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({
 
           <div className="flex flex-wrap gap-2.5">
             <button
+              onClick={() => onNavigateTab('gerenciar-visibilidade')}
+              id="owner-manage-visibility-btn"
+              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-300 text-xs font-bold text-amber-950 transition-colors shadow-2xs"
+              title="Painel de Governança e Controle de Visibilidade de Botões"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[#a16a1c]" />
+              <span>Governança</span>
+            </button>
+            <button
               onClick={() => onNavigateTab('servicos')}
-              className="px-3.5 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-300 text-xs font-bold text-amber-950 transition-colors shadow-2xs"
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-stone-100 border border-[#e2dcce] text-xs font-bold text-stone-900 transition-colors shadow-2xs"
             >
               + Gerenciar Serviços
             </button>
@@ -310,6 +321,11 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Visibility & Button Access Management (Controle de Botões para Cliente & Barbeiro) */}
+      <section id="visibility-management-section">
+        <VisibilityControlCard onNavigateTab={onNavigateTab} />
+      </section>
 
       {/* Latest Appointments Table */}
       <div className="rounded-2xl border border-[#e2dcce] bg-white p-6 shadow-2xs">

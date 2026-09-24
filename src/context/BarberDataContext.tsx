@@ -8,6 +8,8 @@ import {
   AppointmentStatus,
   UserRole,
   ServiceCategoryItem,
+  RoleVisibilitySettings,
+  FeatureRoleVisibility,
 } from '../types';
 import {
   INITIAL_CLIENTS,
@@ -96,6 +98,11 @@ interface BarberDataContextType {
   services: Service[];
   appointments: Appointment[];
   settings: BarbershopSettings;
+  // Visibility & Access Control Settings
+  visibilitySettings: RoleVisibilitySettings;
+  updateVisibility: (feature: keyof RoleVisibilitySettings, role: UserRole, isVisible: boolean) => void;
+  resetVisibilitySettings: () => void;
+  isFeatureVisibleForRole: (feature: keyof RoleVisibilitySettings, role: UserRole) => boolean;
   // Supabase State & Actions
   supabaseStatus: SupabaseSyncStatus;
   syncWithSupabase: () => Promise<void>;
@@ -159,6 +166,40 @@ const SERVICES_STORAGE_KEY = 'barberpro_services_v1';
 const CATEGORIES_STORAGE_KEY = 'barberpro_categories_v1';
 const APPOINTMENTS_STORAGE_KEY = 'barberpro_appointments_v1';
 const SETTINGS_STORAGE_KEY = 'barberpro_settings_v1';
+const VISIBILITY_STORAGE_KEY = 'audax_role_visibility_v2';
+
+export const DEFAULT_VISIBILITY_SETTINGS: RoleVisibilitySettings = {
+  aiBooking: {
+    dono: true,
+    barbeiro: true,
+    cliente: true,
+  },
+  supabaseStatus: {
+    dono: true,
+    barbeiro: false,
+    cliente: false,
+  },
+  testProfiles: {
+    dono: true,
+    barbeiro: false,
+    cliente: false,
+  },
+  architectureDocs: {
+    dono: true,
+    barbeiro: false,
+    cliente: false,
+  },
+  clientList: {
+    dono: true,
+    barbeiro: true,
+    cliente: false,
+  },
+  servicesCatalog: {
+    dono: true,
+    barbeiro: false,
+    cliente: true,
+  },
+};
 
 const INITIAL_CATEGORIES: ServiceCategoryItem[] = [
   { id: 'cat-1', name: 'Cabelo', slug: 'cabelo', description: 'Cortes e penteados de cabelo', isActive: true },
@@ -258,6 +299,49 @@ export const BarberDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     hasRLSError: false,
     message: 'Supabase conectado',
   });
+
+  // Role Feature Visibility Settings (Controlled by Owner)
+  const [visibilitySettings, setVisibilitySettings] = useState<RoleVisibilitySettings>(() => {
+    try {
+      const saved = localStorage.getItem(VISIBILITY_STORAGE_KEY);
+      if (saved) {
+        return { ...DEFAULT_VISIBILITY_SETTINGS, ...JSON.parse(saved) };
+      }
+    } catch (e) {
+      console.error('Error loading visibility settings', e);
+    }
+    return DEFAULT_VISIBILITY_SETTINGS;
+  });
+
+  const updateVisibility = useCallback(
+    (feature: keyof RoleVisibilitySettings, role: UserRole, isVisible: boolean) => {
+      setVisibilitySettings((prev) => {
+        const updated: RoleVisibilitySettings = {
+          ...prev,
+          [feature]: {
+            ...prev[feature],
+            [role]: isVisible,
+          },
+        };
+        localStorage.setItem(VISIBILITY_STORAGE_KEY, JSON.stringify(updated));
+        return updated;
+      });
+    },
+    []
+  );
+
+  const resetVisibilitySettings = useCallback(() => {
+    setVisibilitySettings(DEFAULT_VISIBILITY_SETTINGS);
+    localStorage.setItem(VISIBILITY_STORAGE_KEY, JSON.stringify(DEFAULT_VISIBILITY_SETTINGS));
+  }, []);
+
+  const isFeatureVisibleForRole = useCallback(
+    (feature: keyof RoleVisibilitySettings, role: UserRole): boolean => {
+      if (!visibilitySettings[feature]) return true;
+      return !!visibilitySettings[feature][role];
+    },
+    [visibilitySettings]
+  );
 
   // Local storage persistence
   useEffect(() => {
@@ -910,6 +994,10 @@ export const BarberDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         getVisibleAppointments,
         getAppointmentsForDate,
         stats,
+        visibilitySettings,
+        updateVisibility,
+        resetVisibilitySettings,
+        isFeatureVisibleForRole,
         resetAllData,
       }}
     >
