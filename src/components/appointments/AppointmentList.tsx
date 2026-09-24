@@ -24,6 +24,7 @@ import {
   Sunset,
   Grid,
   List,
+  Crown,
 } from 'lucide-react';
 import { Appointment, AppointmentStatus } from '../../types';
 import {
@@ -49,6 +50,9 @@ export const AppointmentList: React.FC<AppointmentListProps> = ({
     cancelAppointment,
     deleteAppointment,
     barbers,
+    ownerAppointmentScope,
+    setOwnerAppointmentScope,
+    roleAppointmentCounts,
   } = useBarberData();
 
   // Mode: 'turnos' (Grade de controle por turno e data) | 'lista' (Tabela detalhada com filtros)
@@ -249,9 +253,122 @@ export const AppointmentList: React.FC<AppointmentListProps> = ({
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* MODE 1: GRADE POR TURNOS (CONTROLE DE AGENDA)                             */}
-      {/* ========================================================================= */}
+      {/* Opção do Dono: Ver Todos os Agendamentos vs. Apenas os Dele */}
+      {activeRole === 'dono' && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 via-white to-amber-50/70 shadow-2xs">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 rounded-xl bg-amber-200 text-amber-900 shrink-0">
+              <Crown className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-black uppercase tracking-wider text-amber-950">
+                  Modo de Visualização do Dono
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold border ${
+                    ownerAppointmentScope === 'meus'
+                      ? 'bg-amber-200 text-amber-950 border-amber-400'
+                      : 'bg-stone-200 text-stone-800 border-stone-300'
+                  }`}
+                >
+                  {ownerAppointmentScope === 'meus' ? 'Visualizando: Meus Atendimentos' : 'Visualizando: Toda a Barbearia'}
+                </span>
+              </div>
+              <p className="text-xs text-stone-600 font-medium mt-0.5">
+                {ownerAppointmentScope === 'meus'
+                  ? 'Exibindo apenas os agendamentos atribuídos diretamente a você como barbeiro/dono.'
+                  : 'Exibindo todos os agendamentos de todos os profissionais e clientes sem restrição.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center bg-[#f4efe4] border border-[#e2dcce] p-1 rounded-xl shadow-xs shrink-0 self-start sm:self-auto">
+            <button
+              type="button"
+              id="owner-appointment-filter-todos"
+              onClick={() => setOwnerAppointmentScope('todos')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                ownerAppointmentScope === 'todos'
+                  ? 'bg-[#a16a1c] text-white shadow-xs'
+                  : 'text-stone-700 hover:text-stone-900 hover:bg-[#ede5d6]'
+              }`}
+            >
+              <span>💈 Todos da Barbearia</span>
+              <span
+                className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                  ownerAppointmentScope === 'todos' ? 'bg-white/25 text-white' : 'bg-stone-300/80 text-stone-800'
+                }`}
+              >
+                {roleAppointmentCounts.totalAppointmentsCount}
+              </span>
+            </button>
+            <button
+              type="button"
+              id="owner-appointment-filter-meus"
+              onClick={() => setOwnerAppointmentScope('meus')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                ownerAppointmentScope === 'meus'
+                  ? 'bg-[#a16a1c] text-white shadow-xs'
+                  : 'text-stone-700 hover:text-stone-900 hover:bg-[#ede5d6]'
+              }`}
+            >
+              <span>✂️ Meus Atendimentos</span>
+              <span
+                className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                  ownerAppointmentScope === 'meus' ? 'bg-white/25 text-white' : 'bg-stone-300/80 text-stone-800'
+                }`}
+              >
+                {roleAppointmentCounts.ownerMyAppointmentsCount}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador para Cliente logado */}
+      {activeRole === 'cliente' && (
+        <div className="flex items-center justify-between p-3.5 rounded-2xl border border-emerald-300 bg-emerald-50/70 shadow-2xs">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 rounded-xl bg-emerald-100 text-emerald-900 shrink-0">
+              <User className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-black text-emerald-950 uppercase tracking-wider">
+                Seus Agendamentos ({roleAppointmentCounts.clientCount})
+              </p>
+              <p className="text-xs text-stone-600 font-medium">
+                Mostrando os agendamentos registrados para o seu perfil ({currentUser?.name || currentUser?.email}).
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onOpenNewAppointment()}
+            className="rounded-lg bg-[#a16a1c] text-white px-3 py-1.5 text-xs font-bold shadow-xs hover:bg-[#8c5a15] transition-colors"
+          >
+            + Novo Agendamento
+          </button>
+        </div>
+      )}
+
+      {/* Indicador para Barbeiro logado */}
+      {activeRole === 'barbeiro' && (
+        <div className="flex items-center justify-between p-3.5 rounded-2xl border border-blue-300 bg-blue-50/70 shadow-2xs">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 rounded-xl bg-blue-100 text-blue-900 shrink-0">
+              <Scissors className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-black text-blue-950 uppercase tracking-wider">
+                Seus Atendimentos ({roleAppointmentCounts.barberCount})
+              </p>
+              <p className="text-xs text-stone-600 font-medium">
+                Mostrando os agendamentos associados à sua escala ({currentUser?.name}).
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       {viewMode === 'turnos' && (
         <div className="space-y-5">
           {/* Top Bar: Date Navigator & Barber Filter */}

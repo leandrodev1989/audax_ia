@@ -42,7 +42,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   setIsDarkMode,
 }) => {
   const { currentUser, activeRole, setActiveRole, logout, loginAsDemoUser, users } = useAuth();
-  const { supabaseStatus, syncWithSupabase, isFeatureVisibleForRole } = useBarberData();
+  const {
+    supabaseStatus,
+    syncWithSupabase,
+    isFeatureVisibleForRole,
+    ownerAppointmentScope,
+    setOwnerAppointmentScope,
+    roleAppointmentCounts,
+  } = useBarberData();
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showDemoUserMenu, setShowDemoUserMenu] = useState(false);
   const [showSupabaseModal, setShowSupabaseModal] = useState(false);
@@ -455,17 +462,66 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               Dashboard
             </button>
-            <button
-              onClick={() => {
-                setActiveTab('agendamentos');
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full flex items-center px-3 py-2 rounded-lg text-sm font-bold ${
-                activeTab === 'agendamentos' ? 'bg-amber-100 text-amber-950 border border-amber-300' : 'text-stone-800 hover:bg-stone-100'
+            <div
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold ${
+                activeTab === 'agendamentos'
+                  ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                  : 'text-stone-800 hover:bg-stone-100'
               }`}
             >
-              Agendamentos
-            </button>
+              <button
+                onClick={() => {
+                  setActiveTab('agendamentos');
+                  setMobileMenuOpen(false);
+                }}
+                className="flex-1 text-left"
+              >
+                Agendamentos
+              </button>
+
+              {activeRole === 'dono' ? (
+                <div className="flex items-center space-x-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOwnerAppointmentScope('todos');
+                      setActiveTab('agendamentos');
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${
+                      ownerAppointmentScope === 'todos'
+                        ? 'bg-[#a16a1c] text-white border-[#8c5a15]'
+                        : 'bg-white text-stone-700 border-[#e2dcce]'
+                    }`}
+                  >
+                    Todos ({roleAppointmentCounts.totalAppointmentsCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOwnerAppointmentScope('meus');
+                      setActiveTab('agendamentos');
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${
+                      ownerAppointmentScope === 'meus'
+                        ? 'bg-[#a16a1c] text-white border-[#8c5a15]'
+                        : 'bg-white text-stone-700 border-[#e2dcce]'
+                    }`}
+                  >
+                    Meus ({roleAppointmentCounts.ownerMyAppointmentsCount})
+                  </button>
+                </div>
+              ) : activeRole === 'barbeiro' ? (
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300">
+                  {roleAppointmentCounts.barberCount} {roleAppointmentCounts.barberCount === 1 ? 'agendamento' : 'agendados'}
+                </span>
+              ) : (
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  {roleAppointmentCounts.clientCount} {roleAppointmentCounts.clientCount === 1 ? 'agendamento' : 'agendados'}
+                </span>
+              )}
+            </div>
             {isFeatureVisibleForRole('servicesCatalog', activeRole) && (
               <button
                 onClick={() => {

@@ -33,7 +33,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenProfileModal,
 }) => {
   const { activeRole, currentUser } = useAuth();
-  const { stats, appointments, services, isFeatureVisibleForRole } = useBarberData();
+  const {
+    stats,
+    services,
+    isFeatureVisibleForRole,
+    ownerAppointmentScope,
+    setOwnerAppointmentScope,
+    roleAppointmentCounts,
+  } = useBarberData();
+
+  // Badge dinâmico de agendamento por perfil
+  const getAgendamentoBadgeInfo = () => {
+    if (activeRole === 'cliente') {
+      const count = roleAppointmentCounts.clientCount;
+      return {
+        badge: `${count} ${count === 1 ? 'agendamento' : 'agendados'}`,
+        color: 'bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold',
+      };
+    }
+    if (activeRole === 'barbeiro') {
+      const count = roleAppointmentCounts.barberCount;
+      return {
+        badge: `${count} ${count === 1 ? 'agendamento' : 'agendados'}`,
+        color: 'bg-blue-100 text-blue-900 border border-blue-300 font-bold',
+      };
+    }
+    // Dono
+    return {
+      badge:
+        ownerAppointmentScope === 'meus'
+          ? `${roleAppointmentCounts.ownerMyAppointmentsCount} meus`
+          : `${roleAppointmentCounts.totalAppointmentsCount} total`,
+      color: 'bg-amber-100 text-amber-900 border border-amber-300 font-bold',
+    };
+  };
+
+  const agendamentoBadge = getAgendamentoBadgeInfo();
 
   // Navigation items based on RBAC and Owner visibility settings
   const navItems = [
@@ -50,8 +85,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Agendamentos',
       icon: CalendarDays,
       roles: ['dono', 'barbeiro', 'cliente'],
-      badge: stats.todayAppointments > 0 ? `${stats.todayAppointments} hoje` : null,
-      badgeColor: 'bg-amber-100 text-amber-900 border border-amber-300 font-bold',
+      badge: agendamentoBadge.badge,
+      badgeColor: agendamentoBadge.color,
       isVisible: true,
     },
     {
@@ -178,10 +213,55 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <span>{item.label}</span>
                     )}
                   </div>
-                  {item.badge && item.id !== 'gerenciar-visibilidade' && (
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${item.badgeColor}`}>
-                      {item.badge}
-                    </span>
+                  {item.id === 'agendamentos' && activeRole === 'dono' ? (
+                    <div
+                      className="flex items-center space-x-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        id="sidebar-agendamentos-scope-todos"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOwnerAppointmentScope('todos');
+                          setActiveTab('agendamentos');
+                        }}
+                        title="Ver total de todos os agendamentos da barbearia sem restrição"
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold transition-all border ${
+                          ownerAppointmentScope === 'todos'
+                            ? 'bg-[#a16a1c] text-white border-[#8c5a15] shadow-2xs scale-105'
+                            : 'bg-[#f4efe4] text-stone-700 border-[#e2dcce] hover:bg-[#ede5d6] hover:text-stone-900'
+                        }`}
+                      >
+                        Todos ({roleAppointmentCounts.totalAppointmentsCount})
+                      </button>
+                      <button
+                        type="button"
+                        id="sidebar-agendamentos-scope-meus"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOwnerAppointmentScope('meus');
+                          setActiveTab('agendamentos');
+                        }}
+                        title="Ver apenas os meus agendamentos como barbeiro/dono"
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold transition-all border ${
+                          ownerAppointmentScope === 'meus'
+                            ? 'bg-[#a16a1c] text-white border-[#8c5a15] shadow-2xs scale-105'
+                            : 'bg-[#f4efe4] text-stone-700 border-[#e2dcce] hover:bg-[#ede5d6] hover:text-stone-900'
+                        }`}
+                      >
+                        Meus ({roleAppointmentCounts.ownerMyAppointmentsCount})
+                      </button>
+                    </div>
+                  ) : (
+                    item.badge && item.id !== 'gerenciar-visibilidade' && (
+                      <span
+                        id={item.id === 'agendamentos' ? 'sidebar-agendamentos-badge' : undefined}
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${item.badgeColor}`}
+                      >
+                        {item.badge}
+                      </span>
+                    )
                   )}
                 </button>
               );

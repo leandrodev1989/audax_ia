@@ -146,6 +146,15 @@ interface BarberDataContextType {
   // Filtering & Stats
   getVisibleAppointments: () => Appointment[];
   getAppointmentsForDate: (date: string) => Appointment[];
+  ownerAppointmentScope: 'todos' | 'meus';
+  setOwnerAppointmentScope: (scope: 'todos' | 'meus') => void;
+  isOwnerAppointment: (appointment: Appointment) => boolean;
+  roleAppointmentCounts: {
+    clientCount: number;
+    barberCount: number;
+    ownerMyAppointmentsCount: number;
+    totalAppointmentsCount: number;
+  };
   stats: {
     totalClients: number;
     activeBarbers: number;
@@ -154,6 +163,10 @@ interface BarberDataContextType {
     realizedRevenue: number;
     projectedRevenue: number;
     pendingAppointmentsCount: number;
+    userAppointmentsCount: number;
+    barberAppointmentsCount: number;
+    ownerMyAppointmentsCount: number;
+    totalAppointmentsCount: number;
   };
   resetAllData: () => void;
 }
@@ -876,26 +889,100 @@ export const BarberDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // -------------------------------------------------------------
   // FILTERING & STATS (Calculated dynamically)
   // -------------------------------------------------------------
+  const OWNER_SCOPE_STORAGE_KEY = 'audax_owner_apt_scope_v1';
+  const [ownerAppointmentScope, setOwnerAppointmentScopeState] = useState<'todos' | 'meus'>(() => {
+    try {
+      const saved = localStorage.getItem(OWNER_SCOPE_STORAGE_KEY);
+      return saved === 'meus' ? 'meus' : 'todos';
+    } catch (e) {
+      return 'todos';
+    }
+  });
+
+  const setOwnerAppointmentScope = (scope: 'todos' | 'meus') => {
+    setOwnerAppointmentScopeState(scope);
+    try {
+      localStorage.setItem(OWNER_SCOPE_STORAGE_KEY, scope);
+    } catch (e) {}
+  };
+
+  const isOwnerAppointment = useCallback(
+    (a: Appointment): boolean => {
+      if (!currentUser) return false;
+      const cleanUserName = currentUser.name.toLowerCase().trim();
+      const cleanUserPhone = (currentUser.phone || '').replace(/\D/g, '');
+
+      // Identifica o barbeiro associado ao Dono (ex: Leandro José)
+      const ownerBarber = barbers.find(
+        (b) =>
+          b.userId === currentUser.id ||
+          (currentUser.barberId && b.id === currentUser.barberId) ||
+          b.name.toLowerCase().trim() === cleanUserName ||
+          b.name.toLowerCase().includes('dono') ||
+          (b.phone && cleanUserPhone && b.phone.replace(/\D/g, '') === cleanUserPhone)
+      );
+
+      if (ownerBarber) {
+        if (a.barberId === ownerBarber.id) return true;
+        if (a.barberName && a.barberName.toLowerCase().trim() === ownerBarber.name.toLowerCase().trim()) return true;
+      }
+
+      // Caso o Dono também tenha agendado como cliente ou barbeiro com seu nome direto
+      if (a.clientId === currentUser.id) return true;
+      if (a.barberName && (a.barberName.toLowerCase().includes(cleanUserName) || cleanUserName.includes(a.barberName.toLowerCase()))) return true;
+      if (a.clientName && (a.clientName.toLowerCase().includes(cleanUserName) || cleanUserName.includes(a.clientName.toLowerCase()))) return true;
+      if (cleanUserPhone && a.clientPhone && a.clientPhone.replace(/\D/g, '') === cleanUserPhone) return true;
+
+      return false;
+    },
+    [currentUser, barbers]
+  );
+
   const getVisibleAppointments = (): Appointment[] => {
     if (!currentUser) return [];
 
     if (activeRole === 'dono') {
-      return appointments;
-    }
-
-    if (activeRole === 'barbeiro') {
-      const barber = barbers.find((b) => b.userId === currentUser.id || b.name === currentUser.name);
-      if (barber) {
-        return appointments.filter((a) => a.barberId === barber.id);
+      if (ownerAppointmentScope === 'meus') {
+        return appointments.filter(isOwnerAppointment);
       }
       return appointments;
     }
 
+    if (activeRole === 'barbeiro') {
+      const cleanUserName = currentUser.name.toLowerCase().trim();
+      const cleanUserPhone = (currentUser.phone || '').replace(/\D/g, '');
+
+      const barber = barbers.find(
+        (b) =>
+          b.userId === currentUser.id ||
+          (currentUser.barberId && b.id === currentUser.barberId) ||
+          b.name.toLowerCase().trim() === cleanUserName ||
+          (b.phone && cleanUserPhone && b.phone.replace(/\D/g, '') === cleanUserPhone)
+      );
+
+      if (barber) {
+        return appointments.filter(
+          (a) =>
+            a.barberId === barber.id ||
+            (a.barberName && a.barberName.toLowerCase().trim() === barber.name.toLowerCase().trim())
+        );
+      }
+      return appointments.filter(
+        (a) => a.barberName && a.barberName.toLowerCase().trim() === cleanUserName
+      );
+    }
+
     if (activeRole === 'cliente') {
+      const cleanEmail = currentUser.email?.toLowerCase().trim();
+      const cleanPhone = (currentUser.phone || '').replace(/\D/g, '');
+      const cleanName = currentUser.name.toLowerCase().trim();
+
       const client = clients.find(
         (c) =>
-          (c.email && c.email.toLowerCase() === currentUser.email?.toLowerCase()) ||
-          (c.whatsapp && c.whatsapp.replace(/\D/g, '') === currentUser.phone?.replace(/\D/g, ''))
+          (c.userId && c.userId === currentUser.id) ||
+          (c.email && cleanEmail && c.email.toLowerCase().trim() === cleanEmail) ||
+          (c.whatsapp && cleanPhone && c.whatsapp.replace(/\D/g, '') === cleanPhone) ||
+          (c.name && cleanName && c.name.toLowerCase().trim() === cleanName)
       );
       const matchedClientId = client?.id;
 
@@ -903,15 +990,15 @@ export const BarberDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (a.clientId === currentUser.id) return true;
         if (matchedClientId && a.clientId === matchedClientId) return true;
         if (
-          currentUser.phone &&
+          cleanPhone &&
           a.clientPhone &&
-          a.clientPhone.replace(/\D/g, '') === currentUser.phone.replace(/\D/g, '')
+          a.clientPhone.replace(/\D/g, '') === cleanPhone
         )
           return true;
         if (
-          currentUser.name &&
+          cleanName &&
           a.clientName &&
-          a.clientName.toLowerCase() === currentUser.name.toLowerCase()
+          a.clientName.toLowerCase().trim() === cleanName
         )
           return true;
         return false;
@@ -928,6 +1015,54 @@ export const BarberDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const todayStr = new Date().toISOString().split('T')[0];
   const todayAppointmentsList = appointments.filter((a) => a.date === todayStr);
 
+  // Contagens dinâmicas por perfil logado
+  const roleAppointmentCounts = {
+    clientCount: appointments.filter((a) => {
+      if (!currentUser) return false;
+      const cleanEmail = currentUser.email?.toLowerCase().trim();
+      const cleanPhone = (currentUser.phone || '').replace(/\D/g, '');
+      const cleanName = currentUser.name.toLowerCase().trim();
+
+      const client = clients.find(
+        (c) =>
+          (c.userId && c.userId === currentUser.id) ||
+          (c.email && cleanEmail && c.email.toLowerCase().trim() === cleanEmail) ||
+          (c.whatsapp && cleanPhone && c.whatsapp.replace(/\D/g, '') === cleanPhone) ||
+          (c.name && cleanName && c.name.toLowerCase().trim() === cleanName)
+      );
+      if (a.clientId === currentUser.id) return true;
+      if (client && a.clientId === client.id) return true;
+      if (cleanPhone && a.clientPhone && a.clientPhone.replace(/\D/g, '') === cleanPhone) return true;
+      if (cleanName && a.clientName && a.clientName.toLowerCase().trim() === cleanName) return true;
+      return false;
+    }).length,
+
+    barberCount: appointments.filter((a) => {
+      if (!currentUser) return false;
+      const cleanUserName = currentUser.name.toLowerCase().trim();
+      const cleanUserPhone = (currentUser.phone || '').replace(/\D/g, '');
+
+      const barber = barbers.find(
+        (b) =>
+          b.userId === currentUser.id ||
+          (currentUser.barberId && b.id === currentUser.barberId) ||
+          b.name.toLowerCase().trim() === cleanUserName ||
+          (b.phone && cleanUserPhone && b.phone.replace(/\D/g, '') === cleanUserPhone)
+      );
+
+      if (barber) {
+        return (
+          a.barberId === barber.id ||
+          (a.barberName && a.barberName.toLowerCase().trim() === barber.name.toLowerCase().trim())
+        );
+      }
+      return a.barberName && a.barberName.toLowerCase().trim() === cleanUserName;
+    }).length,
+
+    ownerMyAppointmentsCount: appointments.filter(isOwnerAppointment).length,
+    totalAppointmentsCount: appointments.length,
+  };
+
   const stats = {
     totalClients: clients.length,
     activeBarbers: barbers.filter((b) => b.isActive).length,
@@ -942,6 +1077,10 @@ export const BarberDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       .filter((a) => a.status !== 'cancelado')
       .reduce((acc, curr) => acc + (curr.servicePrice || 0), 0),
     pendingAppointmentsCount: appointments.filter((a) => a.status === 'agendado').length,
+    userAppointmentsCount: roleAppointmentCounts.clientCount,
+    barberAppointmentsCount: roleAppointmentCounts.barberCount,
+    ownerMyAppointmentsCount: roleAppointmentCounts.ownerMyAppointmentsCount,
+    totalAppointmentsCount: appointments.length,
   };
 
   const resetAllData = () => {
@@ -993,6 +1132,10 @@ export const BarberDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         deleteAppointment,
         getVisibleAppointments,
         getAppointmentsForDate,
+        ownerAppointmentScope,
+        setOwnerAppointmentScope,
+        isOwnerAppointment,
+        roleAppointmentCounts,
         stats,
         visibilitySettings,
         updateVisibility,

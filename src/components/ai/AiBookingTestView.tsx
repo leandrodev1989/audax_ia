@@ -27,6 +27,7 @@ import {
   EyeOff,
   RefreshCw,
   CheckCircle,
+  CalendarDays,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useBarberData } from '../../context/BarberDataContext';
@@ -36,7 +37,7 @@ import {
   ProviderType,
   ProviderModelOption,
 } from '../../services/aiClientService';
-import { ParsedAiResult, FreeSlotInfo } from '../../lib/aiBookingLogic';
+import { ParsedAiResult, FreeSlotInfo, getFreeSlotsSummary } from '../../lib/aiBookingLogic';
 
 export const AiBookingTestView: React.FC = () => {
   const { currentUser, activeRole } = useAuth();
@@ -72,12 +73,48 @@ export const AiBookingTestView: React.FC = () => {
   const [activeUsedProvider, setActiveUsedProvider] = useState<string | null>(null);
   const [createdSuccess, setCreatedSuccess] = useState<string | null>(null);
   const [selectedBarberFilterOnly, setSelectedBarberFilterOnly] = useState<boolean>(true);
+  const [scheduleViewMode, setScheduleViewMode] = useState<'day' | 'week'>('day');
+  const [slotSelectedNotice, setSlotSelectedNotice] = useState<string | null>(null);
 
   const targetBarberName = result?.barberName || '';
   const targetBarberId = result?.barberId || '';
 
-  const displayedSummary = useMemo(() => {
-    if (!result?.freeSlotsSummary) return [];
+  // 7 Upcoming days of the week starting from today
+  const weekDays = useMemo(() => {
+    const now = new Date();
+    const days = [];
+    const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const dayNamesShort = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
+      let dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      try {
+        dateStr = d.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+      } catch (e) {}
+
+      const dayOfWeekIdx = d.getDay();
+      const label = i === 0 ? 'Hoje' : i === 1 ? 'Amanhã' : dayNames[dayOfWeekIdx];
+      const shortLabel = i === 0 ? 'Hoje' : i === 1 ? 'Amanhã' : dayNamesShort[dayOfWeekIdx];
+      const dateFormatted = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+      days.push({
+        offset: i,
+        dateStr,
+        label,
+        shortLabel,
+        dateFormatted,
+        fullDayName: dayNames[dayOfWeekIdx],
+      });
+    }
+    return days;
+  }, []);
+
+  // Compute live slots for any date based on actual appointments and active barbers
+  const computeSlotsForDate = (dateStr: string) => {
+    const activeBarbers = barbers.filter((b) => b.isActive !== false);
+    const summary = getFreeSlotsSummary(dateStr, activeBarbers, appointments);
 
     const now = new Date();
     let todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -87,30 +124,73 @@ export const AiBookingTestView: React.FC = () => {
       currentHHMM = now.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour12: false }).substring(0, 5);
     } catch (e) {}
 
-    // Filter out past slots for today or past dates
-    const futureOnlySummary = result.freeSlotsSummary.map((bInfo) => {
+    return summary.map((bInfo) => {
       const validSlots = bInfo.freeSlots.filter((slot) => {
-        if (!result.date || result.date < todayStr) return false;
-        if (result.date === todayStr) return slot > currentHHMM;
+        if (dateStr < todayStr) return false;
+        if (dateStr === todayStr) return slot > currentHHMM;
         return true;
       });
       return { ...bInfo, freeSlots: validSlots };
     });
+  };
 
-    if (selectedBarberFilterOnly && (targetBarberName || targetBarberId)) {
-      const filtered = futureOnlySummary.filter((bInfo) => {
-        const matchesId = Boolean(targetBarberId && bInfo.barberId === targetBarberId);
-        const matchesName = Boolean(
-          targetBarberName &&
-            (bInfo.barberName.toLowerCase().includes(targetBarberName.toLowerCase()) ||
-              targetBarberName.toLowerCase().includes(bInfo.barberName.toLowerCase()))
-        );
-        return matchesId || matchesName;
-      });
-      if (filtered.length > 0) return filtered;
+  // Helper to filter by selected barber
+  const applyBarberFilter = (summary: FreeSlotInfo[]) => {
+    if (!selectedBarberFilterOnly || (!targetBarberName && !targetBarberId)) {
+      return summary;
     }
-    return futureOnlySummary;
-  }, [result?.freeSlotsSummary, result?.date, targetBarberName, targetBarberId, selectedBarberFilterOnly]);
+    const filtered = summary.filter((bInfo) => {
+      const matchesId = Boolean(targetBarberId && bInfo.barberId === targetBarberId);
+      const matchesName = Boolean(
+        targetBarberName &&
+          (bInfo.barberName.toLowerCase().includes(targetBarberName.toLowerCase()) ||
+            targetBarberName.toLowerCase().includes(bInfo.barberName.toLowerCase()))
+      );
+      return matchesId || matchesName;
+    });
+    return filtered.length > 0 ? filtered : summary;
+  };
+
+  // Computed summary for the currently active date in result
+  const displayedSummary = useMemo(() => {
+    const targetDate = result?.date || weekDays[0]?.dateStr;
+    const computed = computeSlotsForDate(targetDate);
+    return applyBarberFilter(computed);
+  }, [result?.date, weekDays, barbers, appointments, selectedBarberFilterOnly, targetBarberName, targetBarberId]);
+
+  // Computed slots for all 7 days of the week
+  const weeklySchedule = useMemo(() => {
+    return weekDays.map((day) => {
+      const computed = computeSlotsForDate(day.dateStr);
+      const filtered = applyBarberFilter(computed);
+      const totalAvailable = filtered.reduce((acc, b) => acc + b.freeSlots.length, 0);
+      return {
+        ...day,
+        summary: filtered,
+        totalAvailable,
+        isSelectedDate: result?.date === day.dateStr,
+      };
+    });
+  }, [weekDays, barbers, appointments, selectedBarberFilterOnly, targetBarberName, targetBarberId, result?.date]);
+
+  const handleSelectSlot = (dateStr: string, slot: string, barberId: string, barberName: string) => {
+    setResult((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        date: dateStr,
+        time: slot,
+        barberId,
+        barberName,
+        slotStatus: 'LIVRE',
+        occupiedNotice: undefined,
+      };
+    });
+    setSlotSelectedNotice(`Agendamento atualizado para ${dateStr} às ${slot} com ${barberName}`);
+    setTimeout(() => {
+      setSlotSelectedNotice(null);
+    }, 4500);
+  };
 
   // History of test executions
   const [testHistory, setTestHistory] = useState<
@@ -183,12 +263,15 @@ export const AiBookingTestView: React.FC = () => {
   const occupiedAppt = appointments.find((a) => a.status !== 'cancelado') || appointments[0];
   const activeBarbersList = barbers.filter((b) => b.isActive !== false);
 
-  // Pre-configured test prompts including "Agendar para o Barbeiro" options
+  // Pre-configured test prompts including "Agendar para o Barbeiro" and any day of the week
   const samplePrompts = [
     'Agendar para o Barbeiro: Listar barbeiros livres e horários disponíveis',
     ...(activeBarbersList.length > 0
       ? activeBarbersList.map((b) => `Quero agendar um corte com o barbeiro ${b.name} no próximo horário livre de hoje`)
       : []),
+    'Agendar para Sexta-feira: Quero agendar um corte com o Lucas nesta sexta-feira às 16:00',
+    'Agendar para o Sábado: Quero agendar barba e corte para o sábado às 10:30',
+    'Agendar para a Próxima Semana: Quero agendar corte na próxima segunda-feira às 14:00',
     occupiedAppt
       ? `Simular choque de horário: Quero agendar com o ${occupiedAppt.barberName} no dia ${occupiedAppt.date} às ${occupiedAppt.time}`
       : 'Quero agendar um Combo Master com o Lucas amanhã às 15:00',
@@ -808,73 +891,284 @@ export const AiBookingTestView: React.FC = () => {
                   </div>
                 )}
 
-                {/* Available Barbers and Free Slots List Card */}
-                {result.freeSlotsSummary && result.freeSlotsSummary.length > 0 && (
-                  <div className="p-3.5 rounded-xl bg-[#f5f2eb] border border-[#e2dcce] space-y-2">
+                {/* Available Barbers and Free Slots List Card (Single Day & Full Week Option) */}
+                {result && (
+                  <div className="p-3.5 rounded-xl bg-[#f5f2eb] border border-[#e2dcce] space-y-3">
+                    {/* Header Controls: Mode Selector & Barber Filter */}
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      <p className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
-                        <Users2 className="w-4 h-4 text-[#a16a1c]" />
-                        <span>
-                          {selectedBarberFilterOnly && (targetBarberName || targetBarberId)
-                            ? `Agenda e Horários do Barbeiro Selecionado (${result.barberName}) em ${result.date}:`
-                            : `Barbeiros e Horários Livres na Data (${result.date}):`}
+                      <div className="flex items-center gap-1.5">
+                        <CalendarDays className="w-4 h-4 text-[#a16a1c]" />
+                        <span className="text-xs font-bold text-stone-900">
+                          Horários Disponíveis na Agenda Real:
                         </span>
-                      </p>
-                      {(targetBarberName || targetBarberId) && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedBarberFilterOnly((prev) => !prev)}
-                          className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 transition-colors cursor-pointer"
-                        >
-                          {selectedBarberFilterOnly ? '👁️ Ver todos os barbeiros' : `✂️ Filtrar apenas ${result.barberName}`}
-                        </button>
-                      )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* Day vs Week Mode Toggle */}
+                        <div className="inline-flex rounded-lg p-0.5 bg-[#e8e2d5] border border-[#d6cfbf]">
+                          <button
+                            type="button"
+                            onClick={() => setScheduleViewMode('day')}
+                            className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                              scheduleViewMode === 'day'
+                                ? 'bg-white text-stone-900 shadow-xs'
+                                : 'text-stone-600 hover:text-stone-900'
+                            }`}
+                          >
+                            <span>📅 Dia</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setScheduleViewMode('week')}
+                            className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                              scheduleViewMode === 'week'
+                                ? 'bg-[#a16a1c] text-white shadow-xs'
+                                : 'text-stone-600 hover:text-stone-900'
+                            }`}
+                          >
+                            <Sparkles className="w-3 h-3 text-amber-200" />
+                            <span>🗓️ Toda a Semana</span>
+                          </button>
+                        </div>
+
+                        {/* Filter by target barber */}
+                        {(targetBarberName || targetBarberId) && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedBarberFilterOnly((prev) => !prev)}
+                            className="text-[10px] font-bold px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 transition-colors cursor-pointer"
+                          >
+                            {selectedBarberFilterOnly ? `✂️ Apenas ${result.barberName}` : '👥 Todos Barbeiros'}
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="space-y-2 pt-1">
-                      {displayedSummary.map((bInfo) => (
-                        <div key={bInfo.barberId} className="p-2.5 bg-white rounded-lg border border-[#e2dcce] space-y-1.5">
-                          <p className="text-xs font-black text-stone-900 flex items-center justify-between">
-                            <span>✂️ Barbeiro: {bInfo.barberName}</span>
-                            <span className="text-[10px] text-emerald-950 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded font-bold">
-                              {bInfo.freeSlots.length} horários livres
-                            </span>
-                          </p>
-                          <div className="flex flex-wrap gap-1">
-                            {bInfo.freeSlots.length > 0 ? (
-                              bInfo.freeSlots.map((slot) => (
-                                <button
-                                  type="button"
-                                  key={slot}
-                                  onClick={() => {
-                                    setResult((prev) =>
-                                      prev
-                                        ? {
-                                            ...prev,
-                                            time: slot,
-                                            barberId: bInfo.barberId,
-                                            barberName: bInfo.barberName,
-                                            slotStatus: 'LIVRE',
-                                          }
-                                        : null
-                                    );
-                                  }}
-                                  className={`text-[10px] font-mono font-bold px-2 py-1 rounded border transition-all cursor-pointer ${
-                                    slot === result.time && (bInfo.barberId === result.barberId || bInfo.barberName === result.barberName)
-                                      ? 'bg-[#a16a1c] text-white border-[#8c5a15] shadow-xs ring-2 ring-[#a16a1c]/20'
-                                      : 'bg-[#f8f5ee] hover:bg-amber-100 hover:border-[#a16a1c] text-stone-800 border-[#e2dcce]'
-                                  }`}
-                                >
-                                  {slot}
-                                </button>
-                              ))
-                            ) : (
-                              <span className="text-[10px] text-red-700 font-bold">Sem vagas neste dia</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                    {/* Interactive 7-Day Week Strip */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] text-stone-600 font-semibold px-0.5">
+                        <span>Escolha qualquer dia da semana para agendar:</span>
+                        <span className="font-bold text-[#a16a1c]">7 dias disponíveis</span>
+                      </div>
+                      <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
+                        {weeklySchedule.map((day) => {
+                          const isCurrentActive = result.date === day.dateStr;
+                          return (
+                            <button
+                              type="button"
+                              key={day.dateStr}
+                              onClick={() => {
+                                setResult((prev) => (prev ? { ...prev, date: day.dateStr } : null));
+                              }}
+                              className={`p-1.5 rounded-lg border text-center transition-all flex flex-col items-center justify-center cursor-pointer ${
+                                isCurrentActive
+                                  ? 'bg-[#a16a1c] text-white border-[#8c5a15] ring-2 ring-[#a16a1c]/25 shadow-xs font-black'
+                                  : 'bg-white hover:bg-amber-50 text-stone-800 border-[#e2dcce]'
+                              }`}
+                            >
+                              <span className={`text-[9px] uppercase tracking-wider ${isCurrentActive ? 'text-amber-200 font-black' : 'text-stone-500 font-bold'}`}>
+                                {day.shortLabel}
+                              </span>
+                              <span className={`text-xs font-bold leading-tight ${isCurrentActive ? 'text-white' : 'text-stone-900'}`}>
+                                {day.dateFormatted}
+                              </span>
+                              <span
+                                className={`text-[8px] px-1 py-0.2 rounded font-mono font-bold mt-0.5 ${
+                                  isCurrentActive
+                                    ? 'bg-white/20 text-white'
+                                    : day.totalAvailable > 0
+                                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300/60'
+                                    : 'bg-stone-100 text-stone-500'
+                                }`}
+                              >
+                                {day.totalAvailable > 0 ? `${day.totalAvailable} vag.` : 'Esgot.'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
+
+                    {/* Slot Selection Feedback Toast */}
+                    {slotSelectedNotice && (
+                      <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold flex items-center justify-between animate-in fade-in slide-in-from-top-1">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-800 shrink-0" />
+                          <span>{slotSelectedNotice}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mode 1: Single Day View */}
+                    {scheduleViewMode === 'day' && (
+                      <div className="space-y-2 pt-1">
+                        <div className="flex items-center justify-between text-xs font-bold text-stone-800 bg-white/70 px-2.5 py-1.5 rounded-lg border border-[#e2dcce]">
+                          <span>
+                            📅 Vagas para {weekDays.find((d) => d.dateStr === result.date)?.label || result.date} ({result.date}):
+                          </span>
+                          <span className="text-[10px] text-stone-500">
+                            {displayedSummary.reduce((acc, b) => acc + b.freeSlots.length, 0)} horários livres
+                          </span>
+                        </div>
+
+                        {displayedSummary.map((bInfo) => (
+                          <div key={bInfo.barberId} className="p-2.5 bg-white rounded-lg border border-[#e2dcce] space-y-1.5">
+                            <p className="text-xs font-black text-stone-900 flex items-center justify-between">
+                              <span>✂️ Barbeiro: {bInfo.barberName}</span>
+                              <span className="text-[10px] text-emerald-950 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded font-bold">
+                                {bInfo.freeSlots.length} horários livres
+                              </span>
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {bInfo.freeSlots.length > 0 ? (
+                                bInfo.freeSlots.map((slot) => {
+                                  const isSelected =
+                                    slot === result.time &&
+                                    (bInfo.barberId === result.barberId || bInfo.barberName === result.barberName);
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={slot}
+                                      onClick={() => handleSelectSlot(result.date, slot, bInfo.barberId, bInfo.barberName)}
+                                      className={`text-[10px] font-mono font-bold px-2 py-1 rounded border transition-all cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-[#a16a1c] text-white border-[#8c5a15] shadow-xs ring-2 ring-[#a16a1c]/20'
+                                          : 'bg-[#f8f5ee] hover:bg-amber-100 hover:border-[#a16a1c] text-stone-800 border-[#e2dcce]'
+                                      }`}
+                                    >
+                                      {slot}
+                                    </button>
+                                  );
+                                })
+                              ) : (
+                                <span className="text-[10px] text-red-700 font-bold">Sem vagas neste dia</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Button to expand whole week */}
+                        <button
+                          type="button"
+                          onClick={() => setScheduleViewMode('week')}
+                          className="w-full mt-1.5 py-2 px-3 rounded-xl bg-amber-100/80 hover:bg-amber-200/90 text-amber-950 border border-amber-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                        >
+                          <CalendarDays className="w-3.5 h-3.5 text-[#a16a1c]" />
+                          <span>Ver e escolher horários de toda a semana (7 dias)</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Mode 2: Full Week View (All 7 Days Expanded) */}
+                    {scheduleViewMode === 'week' && (
+                      <div className="space-y-3 pt-1">
+                        <div className="flex items-center justify-between text-xs font-bold text-amber-950 bg-amber-100/70 p-2 rounded-lg border border-amber-300">
+                          <span className="flex items-center gap-1">
+                            <Sparkles className="w-3.5 h-3.5 text-[#a16a1c]" />
+                            <span>Visão Completa de Toda a Semana (Clique em qualquer horário para agendar):</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setScheduleViewMode('day')}
+                            className="text-[10px] underline font-bold hover:text-stone-900 cursor-pointer"
+                          >
+                            Voltar para dia
+                          </button>
+                        </div>
+
+                        <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                          {weeklySchedule.map((day) => {
+                            const isSelectedDay = result.date === day.dateStr;
+                            return (
+                              <div
+                                key={day.dateStr}
+                                className={`p-2.5 rounded-xl border transition-all ${
+                                  isSelectedDay
+                                    ? 'bg-white border-[#a16a1c] ring-1 ring-[#a16a1c]/30 shadow-xs'
+                                    : 'bg-white/90 border-[#e2dcce]'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-[#e2dcce]/70">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-black text-stone-900">
+                                      📅 {day.fullDayName} ({day.dateFormatted})
+                                    </span>
+                                    {day.offset === 0 && (
+                                      <span className="text-[9px] font-bold bg-amber-200 text-amber-950 px-1.5 py-0.2 rounded">
+                                        Hoje
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span
+                                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                        day.totalAvailable > 0
+                                          ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                                          : 'bg-stone-100 text-stone-600'
+                                      }`}
+                                    >
+                                      {day.totalAvailable} horários livres
+                                    </span>
+                                    {!isSelectedDay && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setResult((prev) => (prev ? { ...prev, date: day.dateStr } : null))}
+                                        className="text-[10px] text-[#a16a1c] hover:underline font-bold"
+                                      >
+                                        Selecionar dia
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {day.summary.length > 0 && day.totalAvailable > 0 ? (
+                                  <div className="space-y-2">
+                                    {day.summary.map((bInfo) => (
+                                      <div key={bInfo.barberId} className="space-y-1">
+                                        {!selectedBarberFilterOnly && (
+                                          <p className="text-[11px] font-bold text-stone-700 flex items-center justify-between">
+                                            <span>✂️ {bInfo.barberName}:</span>
+                                            <span className="text-[10px] text-stone-500 font-medium">
+                                              {bInfo.freeSlots.length} livres
+                                            </span>
+                                          </p>
+                                        )}
+                                        <div className="flex flex-wrap gap-1">
+                                          {bInfo.freeSlots.map((slot) => {
+                                            const isSelected =
+                                              day.dateStr === result.date &&
+                                              slot === result.time &&
+                                              (bInfo.barberId === result.barberId || bInfo.barberName === result.barberName);
+                                            return (
+                                              <button
+                                                type="button"
+                                                key={slot}
+                                                onClick={() => handleSelectSlot(day.dateStr, slot, bInfo.barberId, bInfo.barberName)}
+                                                className={`text-[10px] font-mono font-bold px-2 py-1 rounded border transition-all cursor-pointer ${
+                                                  isSelected
+                                                    ? 'bg-[#a16a1c] text-white border-[#8c5a15] shadow-xs ring-2 ring-[#a16a1c]/20'
+                                                    : 'bg-[#f8f5ee] hover:bg-amber-100 hover:border-[#a16a1c] text-stone-800 border-[#e2dcce]'
+                                                }`}
+                                              >
+                                                {slot}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-[11px] text-stone-500 italic py-1">
+                                    Sem horários disponíveis para agendamento nesta data.
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

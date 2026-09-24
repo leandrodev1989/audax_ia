@@ -167,21 +167,36 @@ export function fallbackParseBooking(
   // 1. Identify Barber
   let selectedBarber = barbers.find((b) => b.name && lower.includes(b.name.toLowerCase()));
 
-  // 2. Extract Date
+  // 2. Extract Date with full support for any day of the week
   const targetDate = new Date(today);
-  if (lower.includes('amanhã') || lower.includes('amanha')) {
+  const currentDayOfWeek = today.getDay(); // 0: Dom, 1: Seg, 2: Ter, 3: Qua, 4: Qui, 5: Sex, 6: Sáb
+
+  if (lower.includes('depois de amanhã') || lower.includes('depois de amanha')) {
+    targetDate.setDate(today.getDate() + 2);
+  } else if (lower.includes('amanhã') || lower.includes('amanha')) {
     targetDate.setDate(today.getDate() + 1);
-  } else if (lower.includes('sábado') || lower.includes('sabado')) {
-    const day = today.getDay();
-    const diff = (6 - day + 7) % 7 || 7;
+  } else if (lower.includes('hoje')) {
+    // Keep today
+  } else if (lower.includes('domingo')) {
+    const diff = (0 - currentDayOfWeek + 7) % 7 || 7;
+    targetDate.setDate(today.getDate() + diff);
+  } else if (lower.includes('segunda')) {
+    const diff = (1 - currentDayOfWeek + 7) % 7 || 7;
     targetDate.setDate(today.getDate() + diff);
   } else if (lower.includes('terça') || lower.includes('terca')) {
-    const day = today.getDay();
-    const diff = (2 - day + 7) % 7 || 7;
+    const diff = (2 - currentDayOfWeek + 7) % 7 || 7;
+    targetDate.setDate(today.getDate() + diff);
+  } else if (lower.includes('quarta')) {
+    const diff = (3 - currentDayOfWeek + 7) % 7 || 7;
     targetDate.setDate(today.getDate() + diff);
   } else if (lower.includes('quinta')) {
-    const day = today.getDay();
-    const diff = (4 - day + 7) % 7 || 7;
+    const diff = (4 - currentDayOfWeek + 7) % 7 || 7;
+    targetDate.setDate(today.getDate() + diff);
+  } else if (lower.includes('sexta')) {
+    const diff = (5 - currentDayOfWeek + 7) % 7 || 7;
+    targetDate.setDate(today.getDate() + diff);
+  } else if (lower.includes('sábado') || lower.includes('sabado') || lower.includes('final de semana') || lower.includes('fim de semana')) {
+    const diff = (6 - currentDayOfWeek + 7) % 7 || 7;
     targetDate.setDate(today.getDate() + diff);
   }
   const dateStr = targetDate.toISOString().split('T')[0];
