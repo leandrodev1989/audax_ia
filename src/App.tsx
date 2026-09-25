@@ -23,6 +23,7 @@ import { UserProfileModal } from './components/profile/UserProfileModal';
 import { LoginPage } from './components/auth/LoginPage';
 import { FloatingSimulationBanner } from './components/visibility/FloatingSimulationBanner';
 import { VisibilityControlCard } from './components/visibility/VisibilityControlCard';
+import { OfflineIndicator } from './components/pwa/OfflineIndicator';
 import { ShieldAlert } from 'lucide-react';
 
 function MainApp() {
@@ -228,6 +229,9 @@ function MainApp() {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
       />
+
+      {/* PWA Offline Connectivity Banner */}
+      <OfflineIndicator />
     </div>
   );
 }

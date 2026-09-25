@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde68a" />
+      <stop offset="50%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#78350f" />
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1c1917" />
+      <stop offset="100%" stop-color="#0c0a09" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#f59e0b" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="url(#bgGrad)"/>
+  <rect width="504" height="504" x="4" y="4" rx="96" fill="none" stroke="url(#goldGrad)" stroke-width="6" opacity="0.6"/>
+  
+  <!-- Central Emblem -->
+  <g filter="url(#glow)">
+    <!-- Scissor Blade 1 -->
+    <path d="M190 120 L256 250 L322 120 C335 95 365 95 375 115 C385 135 370 165 345 175 L280 270 L345 365 C370 375 385 405 375 425 C365 445 335 445 322 420 L256 290 L190 420 C177 445 147 445 137 425 C127 405 142 375 167 365 L232 270 L167 175 C142 165 127 135 137 115 C147 95 177 95 190 120 Z" fill="none" stroke="url(#goldGrad)" stroke-width="18" stroke-linejoin="round" stroke-linecap="round"/>
+    
+    <!-- Scissor Center Pivot -->
+    <circle cx="256" cy="270" r="16" fill="url(#goldGrad)"/>
+    <circle cx="256" cy="270" r="8" fill="#1c1917"/>
+
+    <!-- Letter A Motif -->
+    <path d="M210 320 L256 190 L302 320" fill="none" stroke="#fef3c7" stroke-width="12" stroke-linecap="round"/>
+    <path d="M225 285 L287 285" fill="none" stroke="#fef3c7" stroke-width="10" stroke-linecap="round"/>
+
+    <!-- AUDAX text at bottom -->
+    <text x="256" y="468" text-anchor="middle" font-family="'Cinzel', serif, system-ui" font-size="34" font-weight="900" fill="url(#goldGrad)" letter-spacing="8">AUDAX</text>
+  </g>
+</svg>

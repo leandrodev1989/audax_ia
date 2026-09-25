@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useBarberData } from '../../context/BarberDataContext';
 import { SupabaseStatusModal } from '../common/SupabaseStatusModal';
+import { PWAInstallButton } from '../pwa/PWAInstallButton';
 
 interface NavbarProps {
   onOpenNewAppointment: () => void;
@@ -324,6 +325,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           )}
 
+          {/* PWA Install Button */}
+          <PWAInstallButton variant="navbar" className="hidden md:flex" />
+
           {/* New Appointment CTA */}
           {activeRole !== 'barbeiro' && (
             <button
@@ -410,6 +414,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
           )}
+
+          {/* Mobile PWA Install */}
+          <PWAInstallButton variant="sidebar" className="my-2" />
 
           {/* Mobile Role Switcher */}
           {currentUser && currentUser.roles.length > 1 && (
@@ -513,12 +520,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
                 </div>
               ) : activeRole === 'barbeiro' ? (
-                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300">
-                  {roleAppointmentCounts.barberCount} {roleAppointmentCounts.barberCount === 1 ? 'agendamento' : 'agendados'}
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-black bg-blue-100 text-blue-900 border border-blue-300">
+                  {roleAppointmentCounts.barberCount}
                 </span>
               ) : (
-                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                  {roleAppointmentCounts.clientCount} {roleAppointmentCounts.clientCount === 1 ? 'agendamento' : 'agendados'}
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  {roleAppointmentCounts.clientCount}
                 </span>
               )}
             </div>
@@ -532,7 +539,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   activeTab === 'servicos' ? 'bg-amber-100 text-amber-950 border border-amber-300' : 'text-stone-800 hover:bg-stone-100'
                 }`}
               >
-                Serviços & Catálogo
+                Serviços
               </button>
             )}
             {isFeatureVisibleForRole('clientList', activeRole) && (
@@ -557,7 +564,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 activeTab === 'barbeiros' ? 'bg-amber-100 text-amber-950 border border-amber-300' : 'text-stone-800 hover:bg-stone-100'
               }`}
             >
-              Barbeiros
+              Profissionais
             </button>
             {isFeatureVisibleForRole('aiBooking', activeRole) && (
               <button
@@ -569,7 +576,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   activeTab === 'ai-booking' ? 'bg-amber-100 text-amber-950 border border-amber-300' : 'text-stone-800 hover:bg-stone-100'
                 }`}
               >
-                Validação de Agendamento IA
+                Agendamento IA
               </button>
             )}
             {isFeatureVisibleForRole('architectureDocs', activeRole) && (
@@ -582,7 +589,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   activeTab === 'arquitetura' ? 'bg-amber-100 text-amber-950 border border-amber-300' : 'text-stone-800 hover:bg-stone-100'
                 }`}
               >
-                Arquitetura & Especificação Técnica
+                Arquitetura
               </button>
             )}
             {isFeatureVisibleForRole('supabaseStatus', activeRole) && (

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useBarberData } from '../../context/BarberDataContext';
+import { PWAInstallButton } from '../pwa/PWAInstallButton';
 import {
   LayoutDashboard,
   CalendarDays,
@@ -42,29 +43,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
     roleAppointmentCounts,
   } = useBarberData();
 
-  // Badge dinâmico de agendamento por perfil
+  // Badge dinâmico de agendamento por perfil (apenas o número no contador)
   const getAgendamentoBadgeInfo = () => {
     if (activeRole === 'cliente') {
       const count = roleAppointmentCounts.clientCount;
       return {
-        badge: `${count} ${count === 1 ? 'agendamento' : 'agendados'}`,
-        color: 'bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold',
+        badge: `${count}`,
+        color: 'inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs',
       };
     }
     if (activeRole === 'barbeiro') {
       const count = roleAppointmentCounts.barberCount;
       return {
-        badge: `${count} ${count === 1 ? 'agendamento' : 'agendados'}`,
-        color: 'bg-blue-100 text-blue-900 border border-blue-300 font-bold',
+        badge: `${count}`,
+        color: 'inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full text-xs font-black bg-blue-100 text-blue-900 border border-blue-300 shadow-2xs',
       };
     }
     // Dono
     return {
-      badge:
+      badge: `${
         ownerAppointmentScope === 'meus'
-          ? `${roleAppointmentCounts.ownerMyAppointmentsCount} meus`
-          : `${roleAppointmentCounts.totalAppointmentsCount} total`,
-      color: 'bg-amber-100 text-amber-900 border border-amber-300 font-bold',
+          ? roleAppointmentCounts.ownerMyAppointmentsCount
+          : roleAppointmentCounts.totalAppointmentsCount
+      }`,
+      color: 'inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs',
     };
   };
 
@@ -91,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'servicos',
-      label: 'Serviços & Catálogo',
+      label: 'Serviços',
       icon: Tag,
       roles: ['dono', 'barbeiro', 'cliente'],
       badge: `${services.filter((s) => s.isActive !== false).length} ativos`,
@@ -109,7 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'barbeiros',
-      label: 'Equipe de Barbeiros',
+      label: 'Profissionais',
       icon: Scissors,
       roles: ['dono', 'cliente'],
       badge: stats.activeBarbers > 0 ? `${stats.activeBarbers} ativos` : null,
@@ -118,19 +120,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'ai-booking',
-      label: 'Validação de Agendamento IA',
+      label: 'Agendamento IA',
       icon: Sparkles,
       roles: ['dono', 'barbeiro', 'cliente'],
-      badge: 'IA & Motor AUDAX',
+      badge: null,
       badgeColor: 'bg-amber-100 text-amber-900 border border-amber-300 font-bold',
       isVisible: isFeatureVisibleForRole('aiBooking', activeRole),
     },
     {
       id: 'arquitetura',
-      label: 'Arquitetura & SaaS Docs',
+      label: 'Arquitetura',
       icon: Layers,
       roles: ['dono', 'barbeiro', 'cliente'],
-      badge: 'BFF & ERD',
+      badge: null,
       badgeColor: 'bg-purple-100 text-purple-900 border border-purple-300 font-bold',
       isVisible: isFeatureVisibleForRole('architectureDocs', activeRole),
     },
@@ -151,7 +153,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   );
 
   return (
-    <aside className="hidden lg:flex w-64 flex-col justify-between border-r border-[#e2dcce] bg-white p-4 transition-colors shadow-xs">
+    <aside className="hidden lg:flex w-72 flex-col justify-between border-r border-[#e2dcce] bg-white p-4 transition-colors shadow-xs">
       <div className="space-y-5">
         {/* Active Role Indicator Card */}
         <div className="rounded-xl border border-[#e2dcce] bg-[#f5f2eb] p-3.5 shadow-2xs">
@@ -193,29 +195,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onClick={() => setActiveTab(item.id)}
                   id={`sidebar-link-${item.id}`}
                   title={item.id === 'gerenciar-visibilidade' ? 'Governança: Gerenciar visibilidade de botões e acessos' : undefined}
-                  className={`group flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold transition-all ${
+                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold transition-all ${
                     isActive
                       ? 'bg-[#eee6d8] text-stone-950 font-bold border-l-4 border-[#a16a1c] shadow-2xs'
                       : 'text-stone-700 hover:bg-[#f5f0e6] hover:text-stone-950'
                   }`}
                 >
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2.5 min-w-0">
                     <Icon
                       className={`h-4 w-4 shrink-0 transition-colors ${
                         isActive ? 'text-[#a16a1c]' : 'text-stone-600 group-hover:text-stone-900'
                       }`}
                     />
                     {item.id === 'gerenciar-visibilidade' ? (
-                      <span className="inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                      <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs truncate">
                         Governança
                       </span>
                     ) : (
-                      <span>{item.label}</span>
+                      <span className="truncate">{item.label}</span>
                     )}
                   </div>
                   {item.id === 'agendamentos' && activeRole === 'dono' ? (
                     <div
-                      className="flex items-center space-x-1"
+                      className="flex items-center shrink-0 rounded-lg bg-[#e8e0d0] p-0.5 border border-[#d8cfbe] gap-0.5 ml-1.5 whitespace-nowrap shadow-2xs"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button
@@ -227,13 +229,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           setActiveTab('agendamentos');
                         }}
                         title="Ver total de todos os agendamentos da barbearia sem restrição"
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold transition-all border ${
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold transition-all whitespace-nowrap leading-tight border ${
                           ownerAppointmentScope === 'todos'
-                            ? 'bg-[#a16a1c] text-white border-[#8c5a15] shadow-2xs scale-105'
-                            : 'bg-[#f4efe4] text-stone-700 border-[#e2dcce] hover:bg-[#ede5d6] hover:text-stone-900'
+                            ? 'bg-[#a16a1c] text-white border-[#8c5a15] shadow-2xs'
+                            : 'bg-transparent text-stone-700 border-transparent hover:text-stone-950 hover:bg-[#ded4c3]'
                         }`}
                       >
-                        Todos ({roleAppointmentCounts.totalAppointmentsCount})
+                        Todos {roleAppointmentCounts.totalAppointmentsCount}
                       </button>
                       <button
                         type="button"
@@ -244,20 +246,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           setActiveTab('agendamentos');
                         }}
                         title="Ver apenas os meus agendamentos como barbeiro/dono"
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold transition-all border ${
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold transition-all whitespace-nowrap leading-tight border ${
                           ownerAppointmentScope === 'meus'
-                            ? 'bg-[#a16a1c] text-white border-[#8c5a15] shadow-2xs scale-105'
-                            : 'bg-[#f4efe4] text-stone-700 border-[#e2dcce] hover:bg-[#ede5d6] hover:text-stone-900'
+                            ? 'bg-[#a16a1c] text-white border-[#8c5a15] shadow-2xs'
+                            : 'bg-transparent text-stone-700 border-transparent hover:text-stone-950 hover:bg-[#ded4c3]'
                         }`}
                       >
-                        Meus ({roleAppointmentCounts.ownerMyAppointmentsCount})
+                        Meus {roleAppointmentCounts.ownerMyAppointmentsCount}
                       </button>
                     </div>
                   ) : (
                     item.badge && item.id !== 'gerenciar-visibilidade' && (
                       <span
                         id={item.id === 'agendamentos' ? 'sidebar-agendamentos-badge' : undefined}
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${item.badgeColor}`}
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0 ml-1.5 ${item.badgeColor}`}
                       >
                         {item.badge}
                       </span>
@@ -309,6 +311,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </button>
         )}
+
+        {/* PWA Mobile Installation Card */}
+        <PWAInstallButton variant="sidebar" />
 
         {/* Card do Studio & Agendar Rápido */}
         <div className="rounded-xl border border-[#e2dcce] bg-gradient-to-b from-[#f6f2e9] to-[#ebd2af]/20 p-3.5 shadow-2xs">
